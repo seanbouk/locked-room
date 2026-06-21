@@ -56,29 +56,59 @@
     const a = angleMap.get(id)!;
     return { x: a.vx, y: a.vy };
   };
-  const centroid = (p: Placement) => {
-    const ps = p.angleIds.map(vpos);
-    return { x: ps.reduce((s, q) => s + q.x, 0) / ps.length, y: ps.reduce((s, q) => s + q.y, 0) / ps.length };
-  };
   function toSvg(cx: number, cy: number) {
     const m = svgEl?.getScreenCTM();
     if (!m) return { x: 0, y: 0 };
     const p = new DOMPoint(cx, cy).matrixTransform(m.inverse());
     return { x: p.x, y: p.y };
   }
-  function nearestTriangleAt(pt: { x: number; y: number }): Placement | null {
-    let best: Placement | null = null;
+
+  // Every geometric triangle in the figure (three points joined pairwise) — not
+  // just the solvable ones — so a busy room has decoys and the highlight isn't a
+  // solution oracle. The triangle key only catches the nearest one within reach.
+  const TRI_REACH = 78; // svg units from a centroid
+  const ptPos = new Map(drawn.points.map((p) => [p.id, { x: p.x, y: p.y }]));
+  const hasSeg = (a: string, b: string) =>
+    level.puzzle.segments.some((s) => (s.a === a && s.b === b) || (s.a === b && s.b === a));
+  const geomTriangles: Array<{ verts: string[]; cx: number; cy: number }> = (() => {
+    const ids = level.puzzle.points.map((p) => p.id);
+    const out: Array<{ verts: string[]; cx: number; cy: number }> = [];
+    for (let i = 0; i < ids.length; i++)
+      for (let j = i + 1; j < ids.length; j++)
+        for (let k = j + 1; k < ids.length; k++) {
+          const [a, b, c] = [ids[i], ids[j], ids[k]];
+          if (hasSeg(a, b) && hasSeg(b, c) && hasSeg(a, c)) {
+            const pa = ptPos.get(a)!, pb = ptPos.get(b)!, pc = ptPos.get(c)!;
+            out.push({ verts: [a, b, c], cx: (pa.x + pb.x + pc.x) / 3, cy: (pa.y + pb.y + pc.y) / 3 });
+          }
+        }
+    return out;
+  })();
+  function nearestTriangle(pt: { x: number; y: number }) {
+    let best = null as (typeof geomTriangles)[number] | null;
     let bd = Infinity;
-    for (const t of placementsFor('triangle-sum')) {
-      const c = centroid(t);
-      const d = (c.x - pt.x) ** 2 + (c.y - pt.y) ** 2;
+    for (const t of geomTriangles) {
+      const d = (t.cx - pt.x) ** 2 + (t.cy - pt.y) ** 2;
       if (d < bd) {
         bd = d;
         best = t;
       }
     }
-    return best;
+    return best && bd <= TRI_REACH ** 2 ? best : null;
   }
+  // The triangle-sum placement matching a triangle's corners, if it's solvable.
+  function placementForTriangle(verts: string[]): Placement | null {
+    const vs = new Set(verts);
+    return (
+      placementsFor('triangle-sum').find((p) => {
+        const pv = p.angleIds.map((id) => angleMap.get(id)?.vertex);
+        return pv.length === 3 && pv.every((v) => v && vs.has(v));
+      }) ?? null
+    );
+  }
+  const previewPoly = $derived(
+    preview ? preview.map((v) => { const p = ptPos.get(v)!; return `${p.x},${p.y}`; }).join(' ') : '',
+  );
 
   // Live chain geometry for rendering (recomputes each animation frame).
   const chainPts = $derived.by(() => {
@@ -87,7 +117,6 @@
   });
 
   function angleClass(id: string): string {
-    if (preview?.includes(id)) return 'angle preview';
     if (chain?.anchor === id) return 'angle pending';
     if (flash.has(id)) return 'angle flash';
     if (solved.has(id) && !givenSet.has(id)) return 'angle solved';
@@ -145,8 +174,8 @@
     if (!drag) return;
     drag = { ...drag, x: e.clientX, y: e.clientY };
     if (drag.keyId === 'triangle-sum') {
-      const t = nearestTriangleAt(toSvg(e.clientX, e.clientY));
-      preview = t ? t.angleIds : null;
+      const t = nearestTriangle(toSvg(e.clientX, e.clientY));
+      preview = t ? t.verts : null;
     }
   }
   function onKeyUp(e: PointerEvent) {
@@ -159,11 +188,10 @@
     const el = document.elementFromPoint(e.clientX, e.clientY);
 
     if (d.keyId === 'triangle-sum') {
-      if (el?.closest('svg')) {
-        const t = nearestTriangleAt(toSvg(e.clientX, e.clientY));
-        if (t) apply(t);
-        else reject();
-      } else reject();
+      const t = el?.closest('svg') ? nearestTriangle(toSvg(e.clientX, e.clientY)) : null;
+      const p = t ? placementForTriangle(t.verts) : null;
+      if (p) apply(p);
+      else reject();
       return;
     }
 
@@ -241,12 +269,16 @@
           <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} class="seg {s.kind}" />
         {/each}
 
+        {#if preview}
+          <polygon points={previewPoly} class="tri-preview" />
+        {/if}
+
         {#each drawn.angles as a (a.id)}
           <path d={a.wedge} class={angleClass(a.id)} />
         {/each}
 
         {#each drawn.points as pt (pt.id)}
-          <circle cx={pt.x} cy={pt.y} r="3.2" class="vertex" />
+          <circle cx={pt.x} cy={pt.y} r={preview?.includes(pt.id) ? 5 : 3.2} class="vertex" class:corner={preview?.includes(pt.id)} />
           <text x={pt.lx} y={pt.ly} class="plabel">{pt.id}</text>
         {/each}
 
@@ -381,6 +413,17 @@
   }
   .vertex {
     fill: #cdd8f0;
+    transition: r 0.15s;
+  }
+  .vertex.corner {
+    fill: #ffe07a;
+  }
+  .tri-preview {
+    fill: rgba(255, 224, 122, 0.16);
+    stroke: #ffe07a;
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    pointer-events: none;
   }
   .plabel {
     fill: #aab6d4;
@@ -415,11 +458,6 @@
   }
   .angle.pending {
     fill: rgba(255, 224, 122, 0.3);
-    stroke: #ffe07a;
-    stroke-width: 2;
-  }
-  .angle.preview {
-    fill: rgba(255, 224, 122, 0.28);
     stroke: #ffe07a;
     stroke-width: 2;
   }
