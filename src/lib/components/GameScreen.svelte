@@ -27,11 +27,29 @@
   const angleMap = new Map(drawn.angles.map((a) => [a.id, a]));
 
   let solved = $state(new Set<string>(lock.solvedIds()));
-  let isOpen = $state(lock.isOpen);
   let flash = $state(new Set<string>());
   let appliedLabels = $state(new Set<string>());
   let toast = $state('');
   let shake = $state(false);
+
+  // Level-transition state machine. A solved angle "sets back" (recedes toward
+  // the centre, behind). On the lock opening, a ~0.64s heartbeat: all nodes
+  // back -> the whole lock back -> rotate 90deg -> flash white -> next level.
+  const HB = 640;
+  type Phase = 'intro' | 'play' | 'allBack' | 'circleBack' | 'rotate' | 'flash';
+  let phase = $state<Phase>('intro');
+  setTimeout(() => phase === 'intro' && (phase = 'play'), 40); // fade in from white
+  const transitioning = $derived(phase !== 'play' && phase !== 'intro');
+  // During play a solved (non-given) angle is set back; in transition, all are.
+  const nodeBack = (id: string) => (transitioning ? true : solved.has(id) && !givenSet.has(id));
+
+  function startTransition() {
+    setTimeout(() => (phase = 'allBack'), HB);
+    setTimeout(() => (phase = 'circleBack'), HB * 2);
+    setTimeout(() => (phase = 'rotate'), HB * 3);
+    setTimeout(() => (phase = 'flash'), HB * 4);
+    setTimeout(() => onComplete(), HB * 4 + 650);
+  }
 
   let svgEl: SVGSVGElement;
 
@@ -171,7 +189,7 @@
       toast = 'The key turns — but nothing gives yet.';
       setTimeout(() => (toast = ''), 1800);
     }
-    if (lock.isOpen) setTimeout(() => (isOpen = true), 650);
+    if (lock.isOpen) setTimeout(startTransition, 350);
   }
 
   // ── Chain lifecycle ─────────────────────────────────────────────────────────
@@ -305,8 +323,8 @@
   </svg>
 {/snippet}
 
-<div class="screen" class:shake>
-      <svg bind:this={svgEl} viewBox={drawn.viewBox} class:open={isOpen} role="img" aria-label="lock puzzle">
+<div class="screen {phase}" class:shake>
+      <svg bind:this={svgEl} viewBox={drawn.viewBox} class:open={transitioning} role="img" aria-label="lock puzzle">
         <defs>
           <linearGradient id="steel" x1="0" y1="0" x2="0.25" y2="1">
             <stop offset="0%" stop-color="#bcc3cc" />
@@ -388,59 +406,42 @@
         <line x1="0" y1="-175" x2="0" y2="375" class="seam-lip light" transform="translate(0.95 0)" />
         <line x1="0" y1="-175" x2="0" y2="375" class="kerf seam" />
 
+        <!-- everything that recedes / rotates as the lock opens -->
+        <g class="lock">
         <!-- the lock disc -->
         <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} fill="url(#disc)" />
         <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} fill="#d2d8df" filter="url(#brushed)" opacity="0.13" clip-path="url(#discClip)" />
         <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} fill="url(#discShade)" mask="url(#shadeMask)" />
 
-        <!-- brass workings (pins): given = full brass disc; needed = brass ring
-             sector over steel; solved = filled brass slice. Drawn under the cuts
-             so the engraved lines run across them. -->
-        <!-- every needed/solved angle is a full circle, steel for the rest:
-             an engraved steel ring first -->
-        <g class="relief" filter="url(#relief)">
-          {#each drawn.angles as a (a.id)}
-            {#if angleState(a.id) !== 'given'}
-              <circle cx={a.vx} cy={a.vy} r={PIN_R} class="cut" fill="none" />
-            {/if}
-          {/each}
-        </g>
-        {#each drawn.angles as a (a.id)}
-          {#if angleState(a.id) !== 'given'}
-            <circle cx={a.vx} cy={a.vy} r={PIN_R} class="kerf" fill="none" />
-          {/if}
-        {/each}
-
-        <!-- brass: given disc; solved slice; then the angle arc (needed/solved) -->
+        <!-- brass workings, one group per node so each can "set back" when
+             solved: given = full brass disc; needed = steel ring + brass arc;
+             solved adds a brass slice -->
         {#each drawn.angles as a (a.id)}
           {@const st = angleState(a.id)}
-          {#if st === 'given'}
-            <circle cx={a.vx} cy={a.vy} r={PIN_R} class="pin-disc" />
-          {:else if st === 'solved' || st === 'flash'}
-            <path d={a.sector} class="pin-slice {st}" />
-          {/if}
-        {/each}
-        {#each drawn.angles as a (a.id)}
-          {@const st = angleState(a.id)}
-          {#if st !== 'given'}
-            <path d={a.arc} class="pin-arc {st}" />
-          {/if}
-        {/each}
-
-        <!-- bevel every brass edge (~half the steel cut girth) -->
-        <g class="relief" filter="url(#relief)">
-          {#each drawn.angles as a (a.id)}
-            {@const st = angleState(a.id)}
+          <g class="node" class:back={nodeBack(a.id)}>
             {#if st === 'given'}
-              <circle cx={a.vx} cy={a.vy} r={PIN_R} class="brass-edge" fill="none" />
+              <circle cx={a.vx} cy={a.vy} r={PIN_R} class="pin-disc" />
+              <g class="relief" filter="url(#relief)">
+                <circle cx={a.vx} cy={a.vy} r={PIN_R} class="brass-edge" fill="none" />
+              </g>
             {:else}
-              <path d={a.arc} class="brass-edge" fill="none" />
+              <g class="relief" filter="url(#relief)">
+                <circle cx={a.vx} cy={a.vy} r={PIN_R} class="cut" fill="none" />
+              </g>
+              <circle cx={a.vx} cy={a.vy} r={PIN_R} class="kerf" fill="none" />
               {#if st === 'solved' || st === 'flash'}
-                <path d={a.sector} class="brass-edge" fill="none" />
+                <path d={a.sector} class="pin-slice {st}" />
               {/if}
+              <path d={a.arc} class="pin-arc {st}" />
+              <g class="relief" filter="url(#relief)">
+                <path d={a.arc} class="brass-edge" fill="none" />
+                {#if st === 'solved' || st === 'flash'}
+                  <path d={a.sector} class="brass-edge" fill="none" />
+                {/if}
+              </g>
             {/if}
-          {/each}
-        </g>
+          </g>
+        {/each}
 
         <!-- chords, engraved as bevelled grooves -->
         <g class="relief" clip-path="url(#discClip)" filter="url(#relief)">
@@ -460,6 +461,8 @@
           <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="cut rim" fill="none" />
         </g>
         <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="kerf rim" fill="none" />
+        </g>
+        <!-- /lock -->
 
         {#if preview}
           <polygon points={previewPoly} class="tri-preview" />
@@ -531,13 +534,9 @@
 
   {#if toast}<div class="toast">{toast}</div>{/if}
 
-  {#if isOpen}
-    <div class="opened">
-      <div class="door"></div>
-      <h3>The lock opens.</h3>
-      <button class="continue" onclick={onComplete}>Step through →</button>
-    </div>
-  {/if}
+  <!-- white flash: full on entry (fades in the level from white) and at the end
+       of the transition (fades out to the next level) -->
+  <div class="whiteout" class:on={phase === 'intro' || phase === 'flash'}></div>
 
   {#if drag}
     <div class="ghost" style="left:{drag.x}px; top:{drag.y}px">{@render keyIcon(drag.keyId)}</div>
@@ -858,49 +857,42 @@
     border-radius: 10px;
     font-size: 0.85rem;
   }
-  .opened {
+  /* ── level transition: nodes/lock "set back" toward the centre, behind ── */
+  .node {
+    transform-box: view-box;
+    transform-origin: 125px 175px; /* the circle centre in viewBox coords */
+    transition: transform 0.6s cubic-bezier(0.5, 0, 0.2, 1), opacity 0.6s ease;
+  }
+  .node.back {
+    transform: scale(0.74);
+    opacity: 0.85;
+  }
+  .lock {
+    transform-box: view-box;
+    transform-origin: 125px 175px;
+    transition: transform 0.62s cubic-bezier(0.5, 0, 0.2, 1);
+  }
+  .screen.circleBack .lock {
+    transform: scale(0.58);
+  }
+  .screen.rotate .lock,
+  .screen.flash .lock {
+    transform: scale(0.58) rotate(90deg);
+  }
+
+  .whiteout {
     position: absolute;
     inset: 0;
-    display: grid;
-    place-content: center;
-    justify-items: center;
-    gap: 0.8rem;
-    background: rgba(8, 12, 22, 0.72);
-    backdrop-filter: blur(2px);
-    animation: fade 0.5s ease;
+    background: radial-gradient(circle at 50% 32%, #fff, #fbf7ee);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease;
   }
-  .door {
-    width: 90px;
-    height: 130px;
-    border-radius: 45px 45px 6px 6px;
-    background: linear-gradient(180deg, #ffe9a8, #ffd166);
-    box-shadow: 0 0 40px rgba(255, 220, 120, 0.7);
-    animation: swing 0.9s ease;
-    transform-origin: left center;
+  .whiteout.on {
+    opacity: 1;
   }
-  .opened h3 {
-    margin: 0;
-  }
-  .continue {
-    padding: 0.6rem 1.1rem;
-    border-radius: 10px;
-    border: none;
-    background: #ffe07a;
-    color: #1a1303;
-    font-weight: 700;
-    cursor: pointer;
-  }
-  @keyframes fade {
-    from {
-      opacity: 0;
-    }
-  }
-  @keyframes swing {
-    from {
-      transform: perspective(400px) rotateY(0);
-    }
-    to {
-      transform: perspective(400px) rotateY(-55deg);
-    }
+  /* on the flash, ramp in fast and hard */
+  .screen.flash .whiteout {
+    transition: opacity 0.45s ease-in;
   }
 </style>
