@@ -31,15 +31,19 @@
   // A multi-part theorem mid-application: the active key + angles chosen so far.
   let pending = $state<null | { keyId: string; chosen: string[] }>(null);
 
+  // Tolerate a transient undefined prop (e.g. mid-HMR) so a stray render can
+  // never throw and wedge the runtime.
+  const keyring = $derived(unlockedKeys ?? []);
+
   function isUnlocked(id: string) {
-    return unlockedKeys.includes(id);
+    return keyring.includes(id);
   }
 
   // Placements over the player's whole keyring (not just the level's intended
   // set) so any unlocked theorem can be tried anywhere it genuinely holds.
   function placementsFor(keyId: string): Placement[] {
     return lock
-      .availablePlacements(unlockedKeys)
+      .availablePlacements(keyring)
       .filter((p) => p.keyId === keyId && !appliedLabels.has(p.label));
   }
 
