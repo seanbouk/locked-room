@@ -324,11 +324,18 @@
                light it from the top-left (negative surfaceScale = chamfered into
                the steel). Flat level is overlay-neutral. The sharp black kerf is
                drawn as a separate line on top, NOT in here. -->
-          <filter id="relief" x="-40%" y="-40%" width="180%" height="180%" color-interpolation-filters="sRGB">
-            <feGaussianBlur in="SourceAlpha" stdDeviation="1.5" result="b" />
-            <feDiffuseLighting in="b" surfaceScale="-5" diffuseConstant="1" lighting-color="#a7a7a7">
+          <filter id="relief" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="0.8" result="b" />
+            <feDiffuseLighting in="b" surfaceScale="-7" diffuseConstant="1" lighting-color="#a7a7a7" result="d">
               <feDistantLight azimuth="225" elevation="50" />
             </feDiffuseLighting>
+            <!-- compress around neutral: lift the shadow floor, tame highlights,
+                 keep flat=0.5 so overlay stays a no-op off the cuts -->
+            <feComponentTransfer>
+              <feFuncR type="linear" slope="0.62" intercept="0.19" />
+              <feFuncG type="linear" slope="0.62" intercept="0.19" />
+              <feFuncB type="linear" slope="0.62" intercept="0.19" />
+            </feComponentTransfer>
           </filter>
           <clipPath id="discClip">
             <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} />
@@ -491,17 +498,17 @@
   }
   .cut {
     stroke: #fff;
-    stroke-width: 3.4;
+    stroke-width: 1.9;
     stroke-linecap: round;
   }
   .cut.seam {
-    stroke-width: 3.6;
+    stroke-width: 2.1;
   }
   .cut.radius {
     stroke-dasharray: 7 7;
   }
   .cut.rim {
-    stroke-width: 3.8;
+    stroke-width: 2.2;
   }
   /* the machined cut itself: a sharp, near-black line laid over the bevel */
   .kerf {
