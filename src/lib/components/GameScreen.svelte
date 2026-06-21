@@ -345,11 +345,14 @@
           <clipPath id="discClip">
             <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} />
           </clipPath>
-          <clipPath id="pinsClip">
+          <!-- the inner vignette is masked out of the pin circles so a pin near
+               the rim reads flat -->
+          <mask id="shadeMask">
+            <rect x="-125" y="-175" width="250" height="550" fill="white" />
             {#each drawn.angles as a (a.id)}
-              <circle cx={a.vx} cy={a.vy} r={PIN_R} />
+              <circle cx={a.vx} cy={a.vy} r={PIN_R} fill="black" />
             {/each}
-          </clipPath>
+          </mask>
         </defs>
 
         <!-- the two doors (brushed steel) -->
@@ -360,14 +363,14 @@
              with explicit offset lips (the relief filter can't resolve a bevel
              on a full-height hairline). Vertical, lit top-left: bright lip left,
              shadow lip right, black kerf down the centre. -->
-        <line x1="0" y1="-175" x2="0" y2="375" class="seam-lip light" transform="translate(-0.95 0)" />
-        <line x1="0" y1="-175" x2="0" y2="375" class="seam-lip shadow" transform="translate(0.95 0)" />
+        <line x1="0" y1="-175" x2="0" y2="375" class="seam-lip shadow" transform="translate(-0.95 0)" />
+        <line x1="0" y1="-175" x2="0" y2="375" class="seam-lip light" transform="translate(0.95 0)" />
         <line x1="0" y1="-175" x2="0" y2="375" class="kerf seam" />
 
         <!-- the lock disc -->
         <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} fill="url(#disc)" />
         <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} fill="#d2d8df" filter="url(#brushed)" opacity="0.13" clip-path="url(#discClip)" />
-        <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} fill="url(#discShade)" />
+        <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} fill="url(#discShade)" mask="url(#shadeMask)" />
         <g class="relief" filter="url(#relief)">
           <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="cut rim" fill="none" />
         </g>
@@ -420,13 +423,6 @@
               {/if}
             {/if}
           {/each}
-        </g>
-
-        <!-- the seam runs through any pin it crosses (e.g. a central pin) -->
-        <g clip-path="url(#pinsClip)">
-          <line x1="0" y1="-175" x2="0" y2="375" class="seam-lip light" transform="translate(-0.95 0)" />
-          <line x1="0" y1="-175" x2="0" y2="375" class="seam-lip shadow" transform="translate(0.95 0)" />
-          <line x1="0" y1="-175" x2="0" y2="375" class="kerf seam" />
         </g>
 
         <!-- chords, engraved as bevelled grooves -->
@@ -635,9 +631,6 @@
   .cut.seam {
     stroke-width: 2.1;
   }
-  .cut.radius {
-    stroke-dasharray: 7 7;
-  }
   .cut.rim {
     stroke-width: 2.2;
   }
@@ -652,9 +645,6 @@
   }
   .kerf.rim {
     stroke-width: 1.2;
-  }
-  .kerf.radius {
-    stroke-dasharray: 7 7;
   }
   /* explicit bevel lips for the vertical seam */
   .seam-lip {
