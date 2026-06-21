@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Lock } from '../engine/game';
-  import { drawPuzzle } from '../render/figure';
+  import { drawPuzzle, PIN_R } from '../render/figure';
   import { makeRope, stepRope, type Bead } from '../render/rope';
   import { ALL_KEYS, type Placement } from '../engine/theorems';
   import type { Level } from '../engine/levels';
@@ -122,13 +122,14 @@
     return ropeBeads.map((b) => ({ x: b.x, y: b.y }));
   });
 
-  function angleClass(id: string): string {
-    if (chain?.anchor === id) return 'angle pending';
-    if (flash.has(id)) return 'angle flash';
-    if (solved.has(id) && !givenSet.has(id)) return 'angle solved';
-    if (givenSet.has(id)) return 'angle given';
-    if (targetSet.has(id)) return 'angle target';
-    return 'angle';
+  // given (whole point known) | pending (mid multi-drag) | flash (just solved)
+  // | solved | unknown (a needed/working angle not yet found)
+  function angleState(id: string): 'given' | 'pending' | 'flash' | 'solved' | 'unknown' {
+    if (givenSet.has(id)) return 'given';
+    if (chain?.anchor === id) return 'pending';
+    if (flash.has(id)) return 'flash';
+    if (solved.has(id)) return 'solved';
+    return 'unknown';
   }
 
   function reject() {
@@ -367,6 +368,20 @@
         </g>
         <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="kerf rim" fill="none" />
 
+        <!-- brass workings (pins): given = full brass disc; needed = brass ring
+             sector over steel; solved = filled brass slice. Drawn under the cuts
+             so the engraved lines run across them. -->
+        {#each drawn.angles as a (a.id)}
+          {@const st = angleState(a.id)}
+          {#if st === 'given'}
+            <circle cx={a.vx} cy={a.vy} r={PIN_R} class="pin-disc" />
+          {:else if st === 'solved' || st === 'flash'}
+            <path d={a.sector} class="pin-fill {st}" />
+          {:else}
+            <path d={a.sector} class="pin-ring {st}" />
+          {/if}
+        {/each}
+
         <!-- chords, engraved as bevelled grooves -->
         <g class="relief" clip-path="url(#discClip)" filter="url(#relief)">
           {#each drawn.segments as s (s.id)}
@@ -383,10 +398,6 @@
           <polygon points={previewPoly} class="tri-preview" />
         {/if}
 
-        <!-- the brass workings -->
-        {#each drawn.angles as a (a.id)}
-          <path d={a.wedge} class={angleClass(a.id)} />
-        {/each}
 
         <!-- rivets at the joints (no letters — the algebra stays hidden) -->
         {#each drawn.points as pt (pt.id)}
@@ -620,40 +631,34 @@
   }
 
   /* brass workings */
-  .angle {
-    fill: rgba(150, 160, 175, 0.1);
-    stroke: rgba(120, 130, 145, 0.4);
-    stroke-width: 1;
-    transition: fill 0.3s, stroke 0.3s;
-  }
-  .angle.given {
+  /* given: a full brass disc (all angles at the point are known) */
+  .pin-disc {
     fill: url(#brass);
     stroke: #6f521a;
     stroke-width: 1;
   }
-  .angle.target {
-    fill: url(#brass);
-    fill-opacity: 0.5;
-    stroke: #e8b94e;
-    stroke-width: 1.6;
-    stroke-dasharray: 3.5 3;
+  /* needed/working angle: brass ring sector (two radii + arc), steel interior */
+  .pin-ring {
+    fill: none;
+    stroke: url(#brass);
+    stroke-width: 4.5;
+    stroke-linejoin: round;
   }
-  .angle.solved {
+  .pin-ring.pending {
+    stroke: url(#brassLit);
+    stroke-width: 5.5;
+  }
+  /* solved: the steel interior fills with brass */
+  .pin-fill {
     fill: url(#brassLit);
     stroke: #8a6320;
-    stroke-width: 1.3;
-    filter: drop-shadow(0 0 4px rgba(255, 205, 100, 0.6));
+    stroke-width: 1.2;
+    stroke-linejoin: round;
+    filter: drop-shadow(0 0 4px rgba(255, 205, 100, 0.55));
   }
-  .angle.pending {
-    fill: url(#brassLit);
-    stroke: #ffe07a;
-    stroke-width: 2;
-  }
-  .angle.flash {
-    fill: url(#brassLit);
-    stroke: #fff0c4;
-    stroke-width: 2.4;
-    filter: drop-shadow(0 0 8px rgba(255, 220, 120, 0.9));
+  .pin-fill.flash {
+    fill: #fff2cf;
+    filter: drop-shadow(0 0 9px rgba(255, 220, 120, 0.95));
   }
   .tri-preview {
     fill: rgba(230, 185, 80, 0.18);

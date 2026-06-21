@@ -28,15 +28,14 @@ export interface Drawn {
   angles: Array<{
     id: string;
     vertex: string;
-    wedge: string;
-    ix: number;
-    iy: number;
     vx: number;
     vy: number;
+    /** filled pie slice at the pin radius (for a solved angle) */
+    sector: string;
   }>;
 }
 
-const WEDGE_R = 26;
+export const PIN_R = 24;
 
 // Maths -> screen: keep x, flip y so the figure looks the way it's described.
 const sx = (p: Point) => p.x;
@@ -95,18 +94,13 @@ export function drawPuzzle(p: Puzzle): Drawn {
     while (delta > Math.PI) delta -= 2 * Math.PI;
     const sweep = delta > 0 ? 1 : 0;
 
-    const p0x = vx + fx * WEDGE_R;
-    const p0y = vy + fy * WEDGE_R;
-    const p1x = vx + tx * WEDGE_R;
-    const p1y = vy + ty * WEDGE_R;
-    const wedge = `M ${vx} ${vy} L ${p0x} ${p0y} A ${WEDGE_R} ${WEDGE_R} 0 0 ${sweep} ${p1x} ${p1y} Z`;
+    const p0x = vx + fx * PIN_R;
+    const p0y = vy + fy * PIN_R;
+    const p1x = vx + tx * PIN_R;
+    const p1y = vy + ty * PIN_R;
+    const sector = `M ${vx} ${vy} L ${p0x} ${p0y} A ${PIN_R} ${PIN_R} 0 0 ${sweep} ${p1x} ${p1y} Z`;
 
-    // Indicator point: along the angle bisector, a bit inside the wedge.
-    const bis = a0 + delta / 2;
-    const ix = vx + Math.cos(bis) * WEDGE_R * 0.6;
-    const iy = vy + Math.sin(bis) * WEDGE_R * 0.6;
-
-    return { id: a.id, vertex: a.vertex, wedge, ix, iy, vx, vy };
+    return { id: a.id, vertex: a.vertex, vx, vy, sector };
   });
 
   return {
