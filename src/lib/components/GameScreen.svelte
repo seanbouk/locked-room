@@ -345,6 +345,11 @@
           <clipPath id="discClip">
             <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} />
           </clipPath>
+          <clipPath id="pinsClip">
+            {#each drawn.angles as a (a.id)}
+              <circle cx={a.vx} cy={a.vy} r={PIN_R} />
+            {/each}
+          </clipPath>
         </defs>
 
         <!-- the two doors (brushed steel) -->
@@ -371,28 +376,57 @@
         <!-- brass workings (pins): given = full brass disc; needed = brass ring
              sector over steel; solved = filled brass slice. Drawn under the cuts
              so the engraved lines run across them. -->
+        <!-- every needed/solved angle is a full circle, steel for the rest:
+             an engraved steel ring first -->
+        <g class="relief" filter="url(#relief)">
+          {#each drawn.angles as a (a.id)}
+            {#if angleState(a.id) !== 'given'}
+              <circle cx={a.vx} cy={a.vy} r={PIN_R} class="cut" fill="none" />
+            {/if}
+          {/each}
+        </g>
+        {#each drawn.angles as a (a.id)}
+          {#if angleState(a.id) !== 'given'}
+            <circle cx={a.vx} cy={a.vy} r={PIN_R} class="kerf" fill="none" />
+          {/if}
+        {/each}
+
+        <!-- brass: given disc; solved slice; then the angle arc (needed/solved) -->
         {#each drawn.angles as a (a.id)}
           {@const st = angleState(a.id)}
           {#if st === 'given'}
             <circle cx={a.vx} cy={a.vy} r={PIN_R} class="pin-disc" />
           {:else if st === 'solved' || st === 'flash'}
-            <path d={a.sector} class="pin-fill {st}" />
-          {:else}
+            <path d={a.sector} class="pin-slice {st}" />
+          {/if}
+        {/each}
+        {#each drawn.angles as a (a.id)}
+          {@const st = angleState(a.id)}
+          {#if st !== 'given'}
             <path d={a.arc} class="pin-arc {st}" />
           {/if}
         {/each}
+
         <!-- bevel every brass edge (~half the steel cut girth) -->
         <g class="relief" filter="url(#relief)">
           {#each drawn.angles as a (a.id)}
             {@const st = angleState(a.id)}
             {#if st === 'given'}
               <circle cx={a.vx} cy={a.vy} r={PIN_R} class="brass-edge" fill="none" />
-            {:else if st === 'solved' || st === 'flash'}
-              <path d={a.sector} class="brass-edge" fill="none" />
             {:else}
               <path d={a.arc} class="brass-edge" fill="none" />
+              {#if st === 'solved' || st === 'flash'}
+                <path d={a.sector} class="brass-edge" fill="none" />
+              {/if}
             {/if}
           {/each}
+        </g>
+
+        <!-- the seam runs through any pin it crosses (e.g. a central pin) -->
+        <g clip-path="url(#pinsClip)">
+          <line x1="0" y1="-175" x2="0" y2="375" class="seam-lip light" transform="translate(-0.95 0)" />
+          <line x1="0" y1="-175" x2="0" y2="375" class="seam-lip shadow" transform="translate(0.95 0)" />
+          <line x1="0" y1="-175" x2="0" y2="375" class="kerf seam" />
         </g>
 
         <!-- chords, engraved as bevelled grooves -->
@@ -646,23 +680,23 @@
   .pin-disc {
     fill: url(#brass);
   }
-  /* needed/working angle: just a brass arc over steel (the gap to find) */
+  /* needed/working angle: a brass arc on the angle portion of the steel ring */
   .pin-arc {
     fill: none;
     stroke: url(#brass);
-    stroke-width: 3.4;
-    stroke-linecap: round;
+    stroke-width: 2.8;
+    stroke-linecap: butt;
   }
   .pin-arc.pending {
     stroke: url(#brassLit);
-    stroke-width: 4.2;
+    stroke-width: 3.4;
   }
-  /* solved: the steel interior fills with brass */
-  .pin-fill {
+  /* solved: the angle's slice fills with brass (rest of the circle stays steel) */
+  .pin-slice {
     fill: url(#brassLit);
     filter: drop-shadow(0 0 4px rgba(255, 205, 100, 0.5));
   }
-  .pin-fill.flash {
+  .pin-slice.flash {
     fill: #fff2cf;
     filter: drop-shadow(0 0 9px rgba(255, 220, 120, 0.95));
   }
