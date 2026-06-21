@@ -121,21 +121,14 @@
   main {
     min-height: 100vh;
     display: grid;
-    place-items: center;
-    padding: 1rem;
+    place-items: start center;
+    padding: 1.5rem 1rem 2rem;
   }
   .frame {
-    width: min(880px, 100%);
-    height: min(720px, 94vh);
+    width: min(620px, 94vw, 76vh);
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    padding: 1rem 1.4rem 1.2rem;
-    border-radius: 18px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
-    overflow: hidden;
   }
   .bar {
     display: flex;
@@ -170,10 +163,7 @@
     min-height: 1.2rem;
   }
   .playwrap {
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
+    display: block;
   }
 
   .modal-bg {

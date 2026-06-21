@@ -252,50 +252,118 @@
 
 <svelte:window onkeydown={onKeydown} />
 
+{#snippet keyIcon(id: string)}
+  <svg class="ki" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    {#if id === 'semicircle'}
+      <path d="M4 4 V20 H20" />
+      <path d="M4 14 H10 V20" />
+    {:else if id === 'triangle-sum'}
+      <path d="M12 4 L20.5 19.5 H3.5 Z" />
+    {:else if id === 'same-segment'}
+      <path d="M9 4 A 9 9 0 0 0 9 20" />
+      <path d="M15 4 A 9 9 0 0 1 15 20" />
+    {:else if id === 'angle-at-centre'}
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 12 L12 3.5" />
+      <path d="M12 12 L20 15" />
+      <circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none" />
+    {:else if id === 'isosceles-radii'}
+      <path d="M12 3 V16" />
+      <path d="M5 8 H19" />
+      <path d="M5 8 L2.5 13 H7.5 Z" />
+      <path d="M19 8 L16.5 13 H21.5 Z" />
+      <path d="M8 20 H16" />
+    {/if}
+  </svg>
+{/snippet}
+
 <div class="screen" class:shake>
   <div class="stage">
     <div class="board">
-      <svg bind:this={svgEl} viewBox={drawn.viewBox} class:open={isOpen} role="img" aria-label="circle puzzle">
+      <svg bind:this={svgEl} viewBox={drawn.viewBox} class:open={isOpen} role="img" aria-label="lock puzzle">
         <defs>
-          <radialGradient id="glass" cx="40%" cy="35%" r="75%">
-            <stop offset="0%" stop-color="#1b2640" />
-            <stop offset="100%" stop-color="#0d1424" />
+          <linearGradient id="steel" x1="0" y1="0" x2="0.25" y2="1">
+            <stop offset="0%" stop-color="#bcc3cc" />
+            <stop offset="48%" stop-color="#9aa2ad" />
+            <stop offset="52%" stop-color="#8d96a1" />
+            <stop offset="100%" stop-color="#6c727d" />
+          </linearGradient>
+          <radialGradient id="disc" cx="38%" cy="32%" r="82%">
+            <stop offset="0%" stop-color="#b7bec8" />
+            <stop offset="62%" stop-color="#949ca8" />
+            <stop offset="100%" stop-color="#767d89" />
           </radialGradient>
+          <linearGradient id="brass" x1="0" y1="0" x2="0.3" y2="1">
+            <stop offset="0%" stop-color="#e9c668" />
+            <stop offset="50%" stop-color="#c2922f" />
+            <stop offset="100%" stop-color="#8f6a1e" />
+          </linearGradient>
+          <radialGradient id="brassLit" cx="40%" cy="34%" r="78%">
+            <stop offset="0%" stop-color="#ffe9a8" />
+            <stop offset="55%" stop-color="#f1bd54" />
+            <stop offset="100%" stop-color="#b07f28" />
+          </radialGradient>
+          <radialGradient id="discShade" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#000" stop-opacity="0" />
+            <stop offset="80%" stop-color="#000" stop-opacity="0" />
+            <stop offset="100%" stop-color="#000" stop-opacity="0.4" />
+          </radialGradient>
+          <filter id="brushed" x="-10%" y="-10%" width="120%" height="120%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.011 0.5" numOctaves="2" seed="7" result="n" />
+            <feColorMatrix in="n" type="saturate" values="0" />
+            <feComponentTransfer><feFuncA type="linear" slope="0.5" /></feComponentTransfer>
+          </filter>
+          <clipPath id="discClip">
+            <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} />
+          </clipPath>
         </defs>
 
-        <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="rim" />
+        <!-- the two doors (brushed steel) -->
+        <rect x="-125" y="-125" width="250" height="250" fill="url(#steel)" />
+        <rect x="-125" y="-125" width="250" height="250" fill="#d2d8df" filter="url(#brushed)" opacity="0.16" />
 
-        {#each drawn.segments as s (s.id)}
-          <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} class="seg {s.kind}" />
-        {/each}
+        <!-- seam between the doors; the lock disc covers the middle -->
+        <g class="groove">
+          <line x1="0" y1="-125" x2="0" y2="125" class="g-shadow seam" transform="translate(-1.1 -1.1)" />
+          <line x1="0" y1="-125" x2="0" y2="125" class="g-light seam" transform="translate(1.1 1.1)" />
+        </g>
+
+        <!-- the lock disc -->
+        <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} fill="url(#disc)" />
+        <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} fill="#d2d8df" filter="url(#brushed)" opacity="0.13" clip-path="url(#discClip)" />
+        <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} fill="url(#discShade)" />
+        <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="rim-shadow" transform="translate(0.8 0.8)" />
+        <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="rim-light" transform="translate(-0.8 -0.8)" />
+
+        <!-- chords, engraved as bevelled grooves -->
+        <g clip-path="url(#discClip)">
+          {#each drawn.segments as s (s.id)}
+            <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} class="g-shadow {s.kind}" transform="translate(-0.9 -0.9)" />
+            <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} class="g-light {s.kind}" transform="translate(0.9 0.9)" />
+          {/each}
+        </g>
 
         {#if preview}
           <polygon points={previewPoly} class="tri-preview" />
         {/if}
 
+        <!-- the brass workings -->
         {#each drawn.angles as a (a.id)}
           <path d={a.wedge} class={angleClass(a.id)} />
         {/each}
 
+        <!-- rivets at the joints (no letters — the algebra stays hidden) -->
         {#each drawn.points as pt (pt.id)}
-          <circle cx={pt.x} cy={pt.y} r={preview?.includes(pt.id) ? 5 : 3.2} class="vertex" class:corner={preview?.includes(pt.id)} />
-          <text x={pt.lx} y={pt.ly} class="plabel">{pt.id}</text>
+          <circle cx={pt.x} cy={pt.y} r={preview?.includes(pt.id) ? 4 : 2.6} class="rivet" class:corner={preview?.includes(pt.id)} />
         {/each}
 
-        {#each drawn.angles as a (a.id)}
-          {#if targetSet.has(a.id) && !solved.has(a.id) && chain?.anchor !== a.id}
-            <text x={a.ix} y={a.iy} class="qmark">?</text>
-          {/if}
-        {/each}
-
-        <!-- the physics chain for a 2-part key -->
+        <!-- physics chain for a 2-part key -->
         {#if chain && chainPts.length}
           <polyline points={chainPts.map((p) => `${p.x},${p.y}`).join(' ')} class="rope" />
           {#each chainPts as p, i (i)}
-            <circle cx={p.x} cy={p.y} r={i === chainPts.length - 1 ? 9 : 3.5} class="bead" class:handle={i === chainPts.length - 1} />
+            <circle cx={p.x} cy={p.y} r={i === chainPts.length - 1 ? 8 : 3} class="bead" class:handle={i === chainPts.length - 1} />
           {/each}
           {@const h = chainPts[chainPts.length - 1]}
-          <text x={h.x} y={h.y + 0.5} class="bead-glyph">⚷</text>
           <circle cx={h.x} cy={h.y} r="18" class="grab" onpointerdown={startHandleGrab} role="button" tabindex="-1" aria-label="chain end" />
         {/if}
 
@@ -309,13 +377,13 @@
 
   {#if chain}
     <div class="prompt">
-      Drag the <b>{chainName}</b>’s loose end onto the angle it links to.
+      Drag the <b>{chainName}</b>’s loose end onto the part it links to.
       <button class="cancel" onclick={endChain}>✕ cancel</button>
     </div>
   {:else if drag?.keyId === 'triangle-sum'}
-    <div class="prompt">Drop on a triangle — its three corners light up.</div>
+    <div class="prompt">Hover a triangle — its three corners light up.</div>
   {:else}
-    <div class="prompt subtle">Drag a key onto the figure. It only catches where its rule is true.</div>
+    <div class="prompt subtle">Drag a key onto the lock. It only bites where its rule holds.</div>
   {/if}
 
   <div class="tray">
@@ -331,8 +399,8 @@
         title={locked ? 'Locked — win this key in an earlier room' : k.blurb}
         onpointerdown={(e) => startKeyDrag(e, k.id)}
       >
-        <span class="key-glyph">{locked ? '🔒' : '⚷'}</span>
-        <span class="key-name">{k.name}</span>
+        {@render keyIcon(k.id)}
+        {#if locked}<span class="lock-badge">🔒</span>{/if}
       </div>
     {/each}
   </div>
@@ -348,18 +416,16 @@
   {/if}
 
   {#if drag}
-    <div class="ghost" style="left:{drag.x}px; top:{drag.y}px">⚷</div>
+    <div class="ghost" style="left:{drag.x}px; top:{drag.y}px">{@render keyIcon(drag.keyId)}</div>
   {/if}
 </div>
 
 <style>
   .screen {
     position: relative;
-    display: grid;
-    grid-template-rows: 1fr auto auto;
+    display: flex;
+    flex-direction: column;
     gap: 0.6rem;
-    height: 100%;
-    min-height: 0;
     color: #e8edf7;
     user-select: none;
   }
@@ -376,15 +442,12 @@
   }
   .stage {
     position: relative;
-    display: grid;
-    place-items: center;
-    min-height: 0;
-    overflow: hidden;
-    container-type: size;
+    width: 100%;
+    aspect-ratio: 1;
   }
   .board {
-    width: min(100cqw, 100cqh);
-    height: min(100cqw, 100cqh);
+    width: 100%;
+    height: 100%;
     touch-action: none;
   }
   svg {
@@ -395,106 +458,114 @@
     touch-action: none;
   }
   svg.open {
-    filter: drop-shadow(0 0 24px rgba(120, 220, 170, 0.55));
+    filter: drop-shadow(0 0 24px rgba(255, 210, 120, 0.5));
   }
-  .rim {
-    fill: url(#glass);
-    stroke: #4a608f;
-    stroke-width: 1.5;
-  }
-  .seg {
-    stroke: #6f86b8;
-    stroke-width: 1.6;
+
+  /* engraved grooves — light from top-left lights the lower-right wall */
+  .g-shadow {
+    stroke: #3e444d;
+    stroke-width: 2.4;
     stroke-linecap: round;
   }
-  .seg.radius {
-    stroke-dasharray: 5 4;
-    opacity: 0.85;
+  .g-light {
+    stroke: #d3d9e0;
+    stroke-width: 2.4;
+    stroke-linecap: round;
   }
-  .vertex {
-    fill: #cdd8f0;
+  .g-shadow.radius,
+  .g-light.radius {
+    stroke-dasharray: 6 5;
+  }
+  .g-shadow.seam,
+  .g-light.seam {
+    stroke-width: 3.4;
+  }
+  .rim-shadow,
+  .rim-light {
+    fill: none;
+    stroke-width: 2.2;
+  }
+  .rim-shadow {
+    stroke: #41474f;
+  }
+  .rim-light {
+    stroke: #d3d9e0;
+  }
+
+  .rivet {
+    fill: #cdd3db;
+    stroke: #5b626d;
+    stroke-width: 0.7;
     transition: r 0.15s;
   }
-  .vertex.corner {
+  .rivet.corner {
     fill: #ffe07a;
+    stroke: #8a6320;
   }
-  .tri-preview {
-    fill: rgba(255, 224, 122, 0.16);
-    stroke: #ffe07a;
-    stroke-width: 1.5;
-    stroke-linejoin: round;
-    pointer-events: none;
-  }
-  .plabel {
-    fill: #aab6d4;
-    font-size: 11px;
-    text-anchor: middle;
-    dominant-baseline: middle;
-    font-family: ui-sans-serif, system-ui, sans-serif;
-  }
-  .hit {
-    fill: transparent;
-    cursor: default;
-  }
+
+  /* brass workings */
   .angle {
-    fill: rgba(150, 170, 210, 0.08);
-    stroke: rgba(150, 170, 210, 0.3);
+    fill: rgba(150, 160, 175, 0.1);
+    stroke: rgba(120, 130, 145, 0.4);
     stroke-width: 1;
     transition: fill 0.3s, stroke 0.3s;
   }
   .angle.given {
-    fill: rgba(240, 196, 90, 0.22);
-    stroke: #f0c45a;
+    fill: url(#brass);
+    stroke: #6f521a;
+    stroke-width: 1;
   }
   .angle.target {
-    fill: rgba(120, 200, 255, 0.06);
-    stroke: #6db6ff;
-    stroke-dasharray: 4 3;
+    fill: url(#brass);
+    fill-opacity: 0.5;
+    stroke: #e8b94e;
+    stroke-width: 1.6;
+    stroke-dasharray: 3.5 3;
   }
   .angle.solved {
-    fill: rgba(110, 225, 165, 0.3);
-    stroke: #6ee1a5;
-    stroke-width: 1.6;
+    fill: url(#brassLit);
+    stroke: #8a6320;
+    stroke-width: 1.3;
+    filter: drop-shadow(0 0 4px rgba(255, 205, 100, 0.6));
   }
   .angle.pending {
-    fill: rgba(255, 224, 122, 0.3);
+    fill: url(#brassLit);
     stroke: #ffe07a;
     stroke-width: 2;
   }
   .angle.flash {
-    fill: rgba(160, 255, 200, 0.7);
-    stroke: #b6ffd6;
+    fill: url(#brassLit);
+    stroke: #fff0c4;
     stroke-width: 2.4;
+    filter: drop-shadow(0 0 8px rgba(255, 220, 120, 0.9));
   }
-  .qmark {
-    fill: #6db6ff;
-    font-size: 13px;
-    font-weight: 700;
-    text-anchor: middle;
-    dominant-baseline: middle;
+  .tri-preview {
+    fill: rgba(230, 185, 80, 0.18);
+    stroke: #e8b94e;
+    stroke-width: 1.5;
+    stroke-linejoin: round;
     pointer-events: none;
   }
+
+  .hit {
+    fill: transparent;
+    cursor: default;
+  }
+
   .rope {
     fill: none;
-    stroke: #c9b067;
-    stroke-width: 2;
+    stroke: #b9b29a;
+    stroke-width: 1.8;
     stroke-linecap: round;
     stroke-linejoin: round;
   }
   .bead {
-    fill: #e6cf86;
+    fill: #d8d2bd;
   }
   .bead.handle {
-    fill: rgba(255, 224, 122, 0.25);
-    stroke: #ffe07a;
-    stroke-width: 1.6;
-  }
-  .bead-glyph {
-    fill: #ffe07a;
-    font-size: 12px;
-    text-anchor: middle;
-    dominant-baseline: middle;
-    pointer-events: none;
+    fill: url(#brassLit);
+    stroke: #8a6320;
+    stroke-width: 1.4;
   }
   .grab {
     fill: transparent;
@@ -503,13 +574,14 @@
   .grab:active {
     cursor: grabbing;
   }
+
   .prompt {
     text-align: center;
     font-size: 0.85rem;
     min-height: 1.2rem;
   }
   .prompt.subtle {
-    opacity: 0.45;
+    opacity: 0.4;
   }
   .cancel {
     margin-left: 0.5rem;
@@ -519,42 +591,44 @@
     cursor: pointer;
     font-size: 0.8rem;
   }
+
   .tray {
     display: flex;
-    gap: 0.5rem;
+    gap: 0.55rem;
     flex-wrap: wrap;
     justify-content: center;
-    padding: 0.5rem;
-    background: rgba(255, 255, 255, 0.04);
-    border-radius: 12px;
   }
   .key {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.45rem 0.7rem;
-    border-radius: 10px;
-    border: 1px solid #3a4a73;
-    background: #18233d;
-    color: #dce4f5;
+    position: relative;
+    width: 54px;
+    height: 54px;
+    display: grid;
+    place-items: center;
+    border-radius: 9px;
+    border: 1px solid #474e5c;
+    background: linear-gradient(160deg, #2c333f, #1b212b);
+    color: #e7be5e;
     cursor: grab;
-    font-size: 0.85rem;
     touch-action: none;
-    transition: opacity 0.15s, box-shadow 0.15s, border-color 0.15s;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 2px 4px rgba(0, 0, 0, 0.35);
+    transition: opacity 0.15s, box-shadow 0.15s, border-color 0.15s, transform 0.1s;
+  }
+  .key:hover:not(.locked):not(.dimmed) {
+    border-color: #e7be5e;
+    transform: translateY(-1px);
   }
   .key:active {
     cursor: grabbing;
   }
-  .key .key-glyph {
-    color: #ffe07a;
+  .ki {
+    width: 28px;
+    height: 28px;
   }
   .key.locked {
-    opacity: 0.4;
+    color: #6b7280;
     cursor: not-allowed;
     border-style: dashed;
-  }
-  .key.locked .key-glyph {
-    color: #8aa0cc;
+    opacity: 0.6;
   }
   .key.dimmed {
     opacity: 0.3;
@@ -563,17 +637,29 @@
   .key.active {
     border-color: #ffe07a;
     box-shadow: 0 0 0 2px rgba(255, 224, 122, 0.35);
-    background: #2b3a60;
+    color: #ffe07a;
   }
+  .lock-badge {
+    position: absolute;
+    right: 2px;
+    bottom: 1px;
+    font-size: 0.7rem;
+    filter: grayscale(0.4);
+  }
+
   .ghost {
     position: fixed;
     transform: translate(-50%, -50%);
-    font-size: 1.8rem;
     color: #ffe07a;
     pointer-events: none;
     filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.6));
     z-index: 50;
   }
+  .ghost :global(.ki) {
+    width: 38px;
+    height: 38px;
+  }
+
   .toast {
     position: absolute;
     bottom: 5.5rem;
@@ -594,7 +680,6 @@
     gap: 0.8rem;
     background: rgba(8, 12, 22, 0.72);
     backdrop-filter: blur(2px);
-    border-radius: 16px;
     animation: fade 0.5s ease;
   }
   .door {

@@ -83,7 +83,8 @@ export function drawPuzzle(p: Puzzle): Drawn {
   });
 
   return {
-    viewBox: '-165 -165 330 330',
+    // r=100 circle in a 250-wide box => the lock fills ~80% of the board width.
+    viewBox: '-125 -125 250 250',
     circle: { cx, cy, r: c.r },
     segments,
     points,
