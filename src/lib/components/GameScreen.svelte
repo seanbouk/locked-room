@@ -392,10 +392,6 @@
         <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} fill="url(#disc)" />
         <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} fill="#d2d8df" filter="url(#brushed)" opacity="0.13" clip-path="url(#discClip)" />
         <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} fill="url(#discShade)" mask="url(#shadeMask)" />
-        <g class="relief" filter="url(#relief)">
-          <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="cut rim" fill="none" />
-        </g>
-        <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="kerf rim" fill="none" />
 
         <!-- brass workings (pins): given = full brass disc; needed = brass ring
              sector over steel; solved = filled brass slice. Drawn under the cuts
@@ -457,6 +453,13 @@
             <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} class="kerf {s.kind}" />
           {/each}
         </g>
+
+        <!-- the outer circle, drawn last so it runs through every node (brass
+             and steel alike) — a uniform policy for all game nodes -->
+        <g class="relief" filter="url(#relief)">
+          <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="cut rim" fill="none" />
+        </g>
+        <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="kerf rim" fill="none" />
 
         {#if preview}
           <polygon points={previewPoly} class="tri-preview" />
