@@ -9,7 +9,13 @@
     level,
     unlockedKeys,
     onComplete,
-  }: { level: Level; unlockedKeys: string[]; onComplete: () => void } = $props();
+    onOpenRooms,
+  }: {
+    level: Level;
+    unlockedKeys: string[];
+    onComplete: () => void;
+    onOpenRooms: () => void;
+  } = $props();
 
   const KEY_ORDER = ['semicircle', 'triangle-sum', 'same-segment', 'angle-at-centre', 'isosceles-radii'];
   const allKeys = KEY_ORDER.map((id) => ALL_KEYS[id]).filter(Boolean);
@@ -278,8 +284,6 @@
 {/snippet}
 
 <div class="screen" class:shake>
-  <div class="stage">
-    <div class="board">
       <svg bind:this={svgEl} viewBox={drawn.viewBox} class:open={isOpen} role="img" aria-label="lock puzzle">
         <defs>
           <linearGradient id="steel" x1="0" y1="0" x2="0.25" y2="1">
@@ -343,14 +347,14 @@
         </defs>
 
         <!-- the two doors (brushed steel) -->
-        <rect x="-125" y="-125" width="250" height="250" fill="url(#steel)" />
-        <rect x="-125" y="-125" width="250" height="250" fill="#d2d8df" filter="url(#brushed)" opacity="0.16" />
+        <rect x="-125" y="-275" width="250" height="550" fill="url(#steel)" />
+        <rect x="-125" y="-275" width="250" height="550" fill="#d2d8df" filter="url(#brushed)" opacity="0.16" />
 
         <!-- seam between the doors; the lock disc covers the middle -->
         <g class="relief" filter="url(#relief)">
-          <line x1="0" y1="-125" x2="0" y2="125" class="cut seam" />
+          <line x1="0" y1="-275" x2="0" y2="275" class="cut seam" />
         </g>
-        <line x1="0" y1="-125" x2="0" y2="125" class="kerf seam" />
+        <line x1="0" y1="-275" x2="0" y2="275" class="kerf seam" />
 
         <!-- the lock disc -->
         <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} fill="url(#disc)" />
@@ -402,38 +406,46 @@
           <circle cx={a.vx} cy={a.vy} r="26" class="hit" data-angle={a.id} />
         {/each}
       </svg>
-    </div>
-  </div>
 
-  {#if chain}
-    <div class="prompt">
-      Drag the <b>{chainName}</b>’s loose end onto the part it links to.
-      <button class="cancel" onclick={endChain}>✕ cancel</button>
-    </div>
-  {:else if drag?.keyId === 'triangle-sum'}
-    <div class="prompt">Hover a triangle — its three corners light up.</div>
-  {:else}
-    <div class="prompt subtle">Drag a key onto the lock. It only bites where its rule holds.</div>
-  {/if}
-
-  <div class="tray">
-    {#each allKeys as k (k.id)}
-      {@const locked = !isUnlocked(k.id)}
-      {@const active = chain?.keyId === k.id}
-      {@const dimmed = chain && !active}
-      <div
-        class="key"
-        class:locked
-        class:active
-        class:dimmed
-        title={locked ? 'Locked — win this key in an earlier room' : k.blurb}
-        onpointerdown={(e) => startKeyDrag(e, k.id)}
-      >
-        {@render keyIcon(k.id)}
-        {#if locked}<span class="lock-badge">🔒</span>{/if}
+      <div class="hud-top">
+        <div class="titles">
+          <span class="room-line"><b>Room {level.id}</b> · {level.title}</span>
+          <span class="intro">{level.intro}</span>
+        </div>
+        <button class="rooms-btn" onclick={onOpenRooms} aria-label="Rooms">▦</button>
       </div>
-    {/each}
-  </div>
+
+      <div class="hud-bottom">
+        {#if chain}
+          <div class="prompt">
+            Drag the <b>{chainName}</b>’s loose end onto the part it links to.
+            <button class="cancel" onclick={endChain}>✕ cancel</button>
+          </div>
+        {:else if drag?.keyId === 'triangle-sum'}
+          <div class="prompt">Hover a triangle — its three corners light up.</div>
+        {:else}
+          <div class="prompt subtle">Drag a key onto the lock. It only bites where its rule holds.</div>
+        {/if}
+
+        <div class="tray">
+          {#each allKeys as k (k.id)}
+            {@const locked = !isUnlocked(k.id)}
+            {@const active = chain?.keyId === k.id}
+            {@const dimmed = chain && !active}
+            <div
+              class="key"
+              class:locked
+              class:active
+              class:dimmed
+              title={locked ? 'Locked — win this key in an earlier room' : k.blurb}
+              onpointerdown={(e) => startKeyDrag(e, k.id)}
+            >
+              {@render keyIcon(k.id)}
+              {#if locked}<span class="lock-badge">🔒</span>{/if}
+            </div>
+          {/each}
+        </div>
+      </div>
 
   {#if toast}<div class="toast">{toast}</div>{/if}
 
@@ -451,13 +463,17 @@
 </div>
 
 <style>
+  /* the play area is a tall 1:2.2 panel filling the screen, flush to the top */
   .screen {
     position: relative;
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
+    height: 100dvh;
+    aspect-ratio: 250 / 550;
+    max-width: 100vw;
+    margin: 0 auto;
+    overflow: hidden;
     color: #e8edf7;
     user-select: none;
+    touch-action: none;
   }
   .screen.shake {
     animation: shake 0.26s;
@@ -470,25 +486,77 @@
       transform: translateX(5px);
     }
   }
-  .stage {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 1;
-  }
-  .board {
-    width: 100%;
-    height: 100%;
-    touch-action: none;
-  }
   svg {
-    display: block;
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
+    display: block;
     transition: filter 0.6s ease;
-    touch-action: none;
   }
   svg.open {
     filter: drop-shadow(0 0 24px rgba(255, 210, 120, 0.5));
+  }
+
+  /* HUD overlaid on the steel, with scrims for legibility */
+  .hud-top {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.7rem 0.85rem 1.4rem;
+    pointer-events: none;
+    background: linear-gradient(to bottom, rgba(8, 12, 20, 0.6), rgba(8, 12, 20, 0));
+  }
+  .titles {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+  }
+  .room-line {
+    font-size: 0.9rem;
+    letter-spacing: 0.02em;
+  }
+  .intro {
+    font-size: 0.78rem;
+    opacity: 0.72;
+    max-width: 32ch;
+  }
+  .rooms-btn {
+    pointer-events: auto;
+    flex: none;
+    background: rgba(20, 28, 44, 0.7);
+    border: 1px solid #3a4a73;
+    color: #dce4f5;
+    border-radius: 8px;
+    padding: 0.3rem 0.55rem;
+    cursor: pointer;
+    font-size: 0.95rem;
+  }
+  .rooms-btn:hover {
+    border-color: #ffe07a;
+  }
+  .hud-bottom {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1.4rem 0.8rem 1rem;
+    pointer-events: none;
+    background: linear-gradient(to top, rgba(8, 12, 20, 0.66), rgba(8, 12, 20, 0));
+  }
+  .hud-bottom .prompt,
+  .hud-bottom .tray,
+  .hud-bottom .cancel {
+    pointer-events: auto;
   }
 
   /* the raw groove stroke; the #relief filter lights it into a real bevel,

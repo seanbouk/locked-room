@@ -47,25 +47,14 @@
 </script>
 
 <main>
-  <div class="frame">
-    <header class="bar">
-      <span class="brand">Locked&nbsp;Room</span>
-      <span class="here">Room {currentLevel.id} · {currentLevel.title}</span>
-      <button class="rooms-btn" onclick={() => (showRooms = true)}>▦ Rooms</button>
-    </header>
-
-    <p class="intro">{currentLevel.intro}</p>
-
-    <div class="playwrap">
-      {#key currentId}
-        <GameScreen
-          level={currentLevel}
-          unlockedKeys={progress.unlockedKeys}
-          onComplete={handleComplete}
-        />
-      {/key}
-    </div>
-  </div>
+  {#key currentId}
+    <GameScreen
+      level={currentLevel}
+      unlockedKeys={progress.unlockedKeys}
+      onComplete={handleComplete}
+      onOpenRooms={() => (showRooms = true)}
+    />
+  {/key}
 
   {#if showRooms}
     <div class="modal-bg" onclick={() => (showRooms = false)} role="presentation">
@@ -119,51 +108,9 @@
 
 <style>
   main {
-    min-height: 100vh;
+    min-height: 100dvh;
     display: grid;
     place-items: start center;
-    padding: 1.5rem 1rem 2rem;
-  }
-  .frame {
-    width: min(620px, 94vw, 76vh);
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  .bar {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-  }
-  .brand {
-    font-weight: 700;
-    letter-spacing: 0.04em;
-  }
-  .here {
-    flex: 1;
-    opacity: 0.65;
-    font-size: 0.9rem;
-  }
-  .rooms-btn {
-    background: #18233d;
-    border: 1px solid #3a4a73;
-    color: #dce4f5;
-    border-radius: 9px;
-    padding: 0.35rem 0.7rem;
-    cursor: pointer;
-    font-size: 0.85rem;
-  }
-  .rooms-btn:hover {
-    border-color: #ffe07a;
-  }
-  .intro {
-    margin: 0;
-    opacity: 0.7;
-    font-size: 0.9rem;
-    min-height: 1.2rem;
-  }
-  .playwrap {
-    display: block;
   }
 
   .modal-bg {

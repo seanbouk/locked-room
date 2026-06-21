@@ -111,7 +111,9 @@ export function drawPuzzle(p: Puzzle): Drawn {
 
   return {
     // r=100 circle in a 250-wide box => the lock fills ~80% of the board width.
-    viewBox: '-125 -125 250 250',
+    // The box is 1:2.2 (tall) so the steel doors run the full height of a
+    // portrait screen, with the lock centred between them.
+    viewBox: '-125 -275 250 550',
     circle: { cx, cy, r: c.r },
     segments,
     points,
