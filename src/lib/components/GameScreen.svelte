@@ -130,6 +130,7 @@
 
 <div class="screen" class:shake>
   <div class="stage">
+    <div class="board">
     <svg viewBox={drawn.viewBox} class:open={isOpen} role="img" aria-label="circle puzzle">
       <defs>
         <radialGradient id="glass" cx="40%" cy="35%" r="75%">
@@ -164,6 +165,7 @@
         <circle cx={a.vx} cy={a.vy} r="28" class="hit" data-angle={a.id} />
       {/each}
     </svg>
+    </div>
   </div>
 
   {#if pending}
@@ -211,10 +213,12 @@
 
 <style>
   .screen {
+    position: relative;
     display: grid;
     grid-template-rows: 1fr auto auto;
     gap: 0.6rem;
     height: 100%;
+    min-height: 0;
     color: #e8edf7;
     user-select: none;
   }
@@ -234,11 +238,21 @@
     display: grid;
     place-items: center;
     min-height: 0;
+    overflow: hidden;
+    container-type: size;
+  }
+  /* Largest square that fits BOTH the stage's width and height — using the
+     container's own dimensions, so it fills the space without ever overflowing
+     and covering the tray / header. */
+  .board {
+    width: min(100cqw, 100cqh);
+    height: min(100cqw, 100cqh);
+    touch-action: none;
   }
   svg {
-    width: min(66vh, 100%);
-    height: auto;
-    aspect-ratio: 1;
+    display: block;
+    width: 100%;
+    height: 100%;
     transition: filter 0.6s ease;
     touch-action: none;
   }
