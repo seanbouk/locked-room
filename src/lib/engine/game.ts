@@ -49,6 +49,17 @@ export class Lock {
     return truthFilter(this.puzzle, out);
   }
 
+  /** Which angle ids this placement WOULD newly solve, without committing it. */
+  probe(place: Placement): string[] {
+    const before = this.solvedIds();
+    const key = ALL_KEYS[place.keyId];
+    const eqs = key.equations(this.puzzle, place);
+    for (const e of eqs) this.system.add(e);
+    const after = this.solvedIds();
+    this.system.removeLast(eqs.length);
+    return [...after].filter((id) => !before.has(id));
+  }
+
   /** Drop a key. Returns the angle ids that became solved as a result. */
   apply(place: Placement): string[] {
     const before = this.solvedIds();

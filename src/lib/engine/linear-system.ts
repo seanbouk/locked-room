@@ -49,6 +49,11 @@ export class LinearSystem {
     this.equations.push(equation);
   }
 
+  /** Drop the last n equations (used to undo a temporary probe). */
+  removeLast(n: number): void {
+    this.equations.splice(this.equations.length - n, n);
+  }
+
   get size(): number {
     return this.equations.length;
   }

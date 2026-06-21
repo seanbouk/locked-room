@@ -137,7 +137,28 @@
     setTimeout(() => (shake = false), 260);
   }
 
+  // Is there any unplayed placement that would solve something right now?
+  function anyProductiveMove(): boolean {
+    for (const pl of lock.availablePlacements(keyring)) {
+      if (appliedLabels.has(pl.label)) continue;
+      if (lock.probe(pl).length > 0) return true;
+    }
+    return false;
+  }
+
   function apply(p: Placement) {
+    // A rule may only stick if it determines something now — unless nothing can
+    // (a forced combination, e.g. two rules that only resolve together). This
+    // stops a rule being applied out of order and silently pre-loading an
+    // equation that makes a later rule solve two angles at once.
+    if (lock.probe(p).length === 0 && anyProductiveMove()) {
+      endChain();
+      preview = null;
+      reject();
+      toast = 'Not yet — solve what it needs first.';
+      setTimeout(() => (toast = ''), 2000);
+      return;
+    }
     const newIds = lock.apply(p);
     appliedLabels = new Set([...appliedLabels, p.label]);
     solved = new Set(lock.solvedIds());
