@@ -313,6 +313,27 @@
             <feColorMatrix in="n" type="saturate" values="0" />
             <feComponentTransfer><feFuncA type="linear" slope="0.5" /></feComponentTransfer>
           </filter>
+
+          <!-- Real engraved bevels: blur the stroke alpha into a height map and
+               DIFFUSE-light it from the top-left. surfaceScale is negative so it
+               reads as cut INTO the steel; the two walls of the groove shade
+               oppositely on their own. The grey relief is `overlay`-blended onto
+               the steel (flat areas ~neutral) so the cut sits in the surface. A
+               little specular adds a glint on the lit wall. -->
+          <filter id="relief" x="-40%" y="-40%" width="180%" height="180%" color-interpolation-filters="sRGB">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="1.7" result="b" />
+            <feDiffuseLighting in="b" surfaceScale="-5.5" diffuseConstant="1" lighting-color="#a7a7a7" result="diff">
+              <feDistantLight azimuth="225" elevation="50" />
+            </feDiffuseLighting>
+            <feSpecularLighting in="b" surfaceScale="-5.5" specularConstant="0.6" specularExponent="18" lighting-color="#ffffff" result="spec">
+              <feDistantLight azimuth="225" elevation="50" />
+            </feSpecularLighting>
+            <feComposite in="spec" in2="SourceAlpha" operator="in" result="specClip" />
+            <feMerge>
+              <feMergeNode in="diff" />
+              <feMergeNode in="specClip" />
+            </feMerge>
+          </filter>
           <clipPath id="discClip">
             <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} />
           </clipPath>
@@ -323,10 +344,8 @@
         <rect x="-125" y="-125" width="250" height="250" fill="#d2d8df" filter="url(#brushed)" opacity="0.16" />
 
         <!-- seam between the doors; the lock disc covers the middle -->
-        <g class="groove">
-          <line x1="0" y1="-125" x2="0" y2="125" class="cut-core seam" />
-          <line x1="0" y1="-125" x2="0" y2="125" class="cut-sh seam" transform="translate(0.95 0)" />
-          <line x1="0" y1="-125" x2="0" y2="125" class="cut-hi seam" transform="translate(-0.95 0)" />
+        <g class="relief" filter="url(#relief)">
+          <line x1="0" y1="-125" x2="0" y2="125" class="cut seam" />
         </g>
 
         <!-- the lock disc -->
@@ -337,11 +356,9 @@
         <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="rim-light" transform="translate(-0.8 -0.8)" />
 
         <!-- chords, engraved as bevelled grooves -->
-        <g clip-path="url(#discClip)">
+        <g class="relief" clip-path="url(#discClip)" filter="url(#relief)">
           {#each drawn.segments as s (s.id)}
-            <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} class="cut-core {s.kind}" />
-            <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} class="cut-sh {s.kind}" transform="translate({s.sh.x} {s.sh.y})" />
-            <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} class="cut-hi {s.kind}" transform="translate({s.hi.x} {s.hi.y})" />
+            <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} class="cut {s.kind}" />
           {/each}
         </g>
 
@@ -463,34 +480,21 @@
     filter: drop-shadow(0 0 24px rgba(255, 210, 120, 0.5));
   }
 
-  /* a fine cut in steel: a dark core, a bright lip on the top-left (lit) side,
-     a dark lip on the shadow side */
-  .cut-core {
-    stroke: #444b54;
-    stroke-width: 0.8;
+  /* the raw groove stroke; the #relief filter lights it into a real bevel,
+     and overlay-blends the grey relief onto the steel so it sits in the surface */
+  .relief {
+    mix-blend-mode: overlay;
+  }
+  .cut {
+    stroke: #fff;
+    stroke-width: 4;
     stroke-linecap: round;
   }
-  .cut-hi {
-    stroke: #f1f5f9;
-    stroke-width: 1.05;
-    stroke-linecap: round;
+  .cut.seam {
+    stroke-width: 4.5;
   }
-  .cut-sh {
-    stroke: #23272e;
-    stroke-width: 1.05;
-    stroke-linecap: round;
-  }
-  .cut-core.seam {
-    stroke-width: 1.1;
-  }
-  .cut-hi.seam,
-  .cut-sh.seam {
-    stroke-width: 1.4;
-  }
-  .cut-core.radius,
-  .cut-hi.radius,
-  .cut-sh.radius {
-    stroke-dasharray: 6 5;
+  .cut.radius {
+    stroke-dasharray: 7 7;
   }
   .rim-shadow,
   .rim-light {
