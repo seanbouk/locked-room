@@ -320,20 +320,15 @@
                oppositely on their own. The grey relief is `overlay`-blended onto
                the steel (flat areas ~neutral) so the cut sits in the surface. A
                little specular adds a glint on the lit wall. -->
+          <!-- Bevel only: blur the stroke alpha into a height map and diffuse-
+               light it from the top-left (negative surfaceScale = chamfered into
+               the steel). Flat level is overlay-neutral. The sharp black kerf is
+               drawn as a separate line on top, NOT in here. -->
           <filter id="relief" x="-40%" y="-40%" width="180%" height="180%" color-interpolation-filters="sRGB">
-            <feGaussianBlur in="SourceAlpha" stdDeviation="1.1" result="b" />
-            <!-- bevel walls: shade the blurred height map, flat level ~neutral -->
-            <feDiffuseLighting in="b" surfaceScale="-4" diffuseConstant="1" lighting-color="#a7a7a7" result="diff">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="1.5" result="b" />
+            <feDiffuseLighting in="b" surfaceScale="-5" diffuseConstant="1" lighting-color="#a7a7a7">
               <feDistantLight azimuth="225" elevation="50" />
             </feDiffuseLighting>
-            <!-- the cut itself: a thin dark core eroded from the stroke centre -->
-            <feMorphology in="SourceAlpha" operator="erode" radius="0.7" result="thin" />
-            <feFlood flood-color="#0e1014" result="blk" />
-            <feComposite in="blk" in2="thin" operator="in" result="core" />
-            <feMerge>
-              <feMergeNode in="diff" />
-              <feMergeNode in="core" />
-            </feMerge>
           </filter>
           <clipPath id="discClip">
             <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} />
@@ -348,6 +343,7 @@
         <g class="relief" filter="url(#relief)">
           <line x1="0" y1="-125" x2="0" y2="125" class="cut seam" />
         </g>
+        <line x1="0" y1="-125" x2="0" y2="125" class="kerf seam" />
 
         <!-- the lock disc -->
         <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} fill="url(#disc)" />
@@ -356,11 +352,17 @@
         <g class="relief" filter="url(#relief)">
           <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="cut rim" fill="none" />
         </g>
+        <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="kerf rim" fill="none" />
 
         <!-- chords, engraved as bevelled grooves -->
         <g class="relief" clip-path="url(#discClip)" filter="url(#relief)">
           {#each drawn.segments as s (s.id)}
             <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} class="cut {s.kind}" />
+          {/each}
+        </g>
+        <g clip-path="url(#discClip)">
+          {#each drawn.segments as s (s.id)}
+            <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} class="kerf {s.kind}" />
           {/each}
         </g>
 
@@ -489,17 +491,32 @@
   }
   .cut {
     stroke: #fff;
-    stroke-width: 2;
+    stroke-width: 3.4;
     stroke-linecap: round;
   }
   .cut.seam {
-    stroke-width: 2.4;
+    stroke-width: 3.6;
   }
   .cut.radius {
     stroke-dasharray: 7 7;
   }
   .cut.rim {
-    stroke-width: 2.6;
+    stroke-width: 3.8;
+  }
+  /* the machined cut itself: a sharp, near-black line laid over the bevel */
+  .kerf {
+    stroke: #0b0d11;
+    stroke-width: 1;
+    stroke-linecap: round;
+  }
+  .kerf.seam {
+    stroke-width: 1.1;
+  }
+  .kerf.rim {
+    stroke-width: 1.2;
+  }
+  .kerf.radius {
+    stroke-dasharray: 7 7;
   }
 
   .rivet {
