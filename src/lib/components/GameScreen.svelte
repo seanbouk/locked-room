@@ -352,8 +352,9 @@
         <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} fill="url(#disc)" />
         <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} fill="#d2d8df" filter="url(#brushed)" opacity="0.13" clip-path="url(#discClip)" />
         <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} fill="url(#discShade)" />
-        <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="rim-shadow" transform="translate(0.8 0.8)" />
-        <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="rim-light" transform="translate(-0.8 -0.8)" />
+        <g class="relief" filter="url(#relief)">
+          <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="cut rim" fill="none" />
+        </g>
 
         <!-- chords, engraved as bevelled grooves -->
         <g class="relief" clip-path="url(#discClip)" filter="url(#relief)">
@@ -496,16 +497,8 @@
   .cut.radius {
     stroke-dasharray: 7 7;
   }
-  .rim-shadow,
-  .rim-light {
-    fill: none;
-    stroke-width: 2.2;
-  }
-  .rim-shadow {
-    stroke: #41474f;
-  }
-  .rim-light {
-    stroke: #d3d9e0;
+  .cut.rim {
+    stroke-width: 5;
   }
 
   .rivet {
