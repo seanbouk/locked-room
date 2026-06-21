@@ -62,14 +62,14 @@ describe('level progression', () => {
       for (const k of lvl.puzzle.keys) {
         expect(kit.has(k), `level ${lvl.id} uses un-unlocked key "${k}"`).toBe(true);
       }
-      if (lvl.award) kit.add(lvl.award.keyId);
+      if (lvl.award) kit.add(lvl.award);
     }
   });
 
   it('every awarded key and every used key is a real theorem', () => {
     for (const lvl of LEVELS) {
       for (const k of lvl.puzzle.keys) expect(ALL_KEYS[k], k).toBeTruthy();
-      if (lvl.award) expect(ALL_KEYS[lvl.award.keyId], lvl.award.keyId).toBeTruthy();
+      if (lvl.award) expect(ALL_KEYS[lvl.award], lvl.award).toBeTruthy();
     }
   });
 

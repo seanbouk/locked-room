@@ -62,9 +62,9 @@ class Progress {
   complete(levelId: number): string | null {
     const lvl = LEVELS.find((l) => l.id === levelId);
     let awarded: string | null = null;
-    if (lvl?.award && !this.unlockedKeys.includes(lvl.award.keyId)) {
-      this.unlockedKeys = [...this.unlockedKeys, lvl.award.keyId];
-      awarded = lvl.award.keyId;
+    if (lvl?.award && !this.unlockedKeys.includes(lvl.award)) {
+      this.unlockedKeys = [...this.unlockedKeys, lvl.award];
+      awarded = lvl.award;
     }
     if (!this.completed.includes(levelId)) this.completed = [...this.completed, levelId];
     this.save();

@@ -15,8 +15,8 @@ export interface Level {
   /** One-line framing shown on entering the room. */
   intro: string;
   puzzle: Puzzle;
-  /** Key id awarded on first completion (and the celebratory name). */
-  award?: { keyId: string; name: string };
+  /** Key id awarded on first completion. Display name comes from the theorem. */
+  award?: string;
 }
 
 export const STARTING_KEYS = ['semicircle'];
@@ -49,7 +49,7 @@ const level1: Level = {
     targets: ['ACB'],
     keys: ['semicircle'],
   },
-  award: { keyId: 'triangle-sum', name: 'Triangle Key' },
+  award: 'triangle-sum',
 };
 
 const level2: Level = {
@@ -77,7 +77,7 @@ const level2: Level = {
     targets: ['ABC'],
     keys: ['semicircle', 'triangle-sum'],
   },
-  award: { keyId: 'same-segment', name: 'Mirror Key' },
+  award: 'same-segment',
 };
 
 const level3: Level = {
@@ -107,7 +107,7 @@ const level3: Level = {
     targets: ['PSQ'],
     keys: ['same-segment'],
   },
-  award: { keyId: 'angle-at-centre', name: 'Double Key' },
+  award: 'angle-at-centre',
 };
 
 const level4: Level = {
@@ -131,7 +131,7 @@ const level4: Level = {
     targets: ['POQ'],
     keys: ['angle-at-centre'],
   },
-  award: { keyId: 'isosceles-radii', name: 'Balance Key' },
+  award: 'isosceles-radii',
 };
 
 const level5: Level = {
