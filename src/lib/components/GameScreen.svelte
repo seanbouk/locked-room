@@ -378,9 +378,22 @@
           {:else if st === 'solved' || st === 'flash'}
             <path d={a.sector} class="pin-fill {st}" />
           {:else}
-            <path d={a.sector} class="pin-ring {st}" />
+            <path d={a.arc} class="pin-arc {st}" />
           {/if}
         {/each}
+        <!-- bevel every brass edge (~half the steel cut girth) -->
+        <g class="relief" filter="url(#relief)">
+          {#each drawn.angles as a (a.id)}
+            {@const st = angleState(a.id)}
+            {#if st === 'given'}
+              <circle cx={a.vx} cy={a.vy} r={PIN_R} class="brass-edge" fill="none" />
+            {:else if st === 'solved' || st === 'flash'}
+              <path d={a.sector} class="brass-edge" fill="none" />
+            {:else}
+              <path d={a.arc} class="brass-edge" fill="none" />
+            {/if}
+          {/each}
+        </g>
 
         <!-- chords, engraved as bevelled grooves -->
         <g class="relief" clip-path="url(#discClip)" filter="url(#relief)">
@@ -399,9 +412,11 @@
         {/if}
 
 
-        <!-- rivets at the joints (no letters — the algebra stays hidden) -->
+        <!-- triangle-preview corner highlights (no permanent joint dots) -->
         {#each drawn.points as pt (pt.id)}
-          <circle cx={pt.x} cy={pt.y} r={preview?.includes(pt.id) ? 4 : 2.6} class="rivet" class:corner={preview?.includes(pt.id)} />
+          {#if preview?.includes(pt.id)}
+            <circle cx={pt.x} cy={pt.y} r="4" class="corner-dot" />
+          {/if}
         {/each}
 
         <!-- physics chain for a 2-part key -->
@@ -619,46 +634,45 @@
     stroke: #353b44;
   }
 
-  .rivet {
-    fill: #cdd3db;
-    stroke: #5b626d;
-    stroke-width: 0.7;
-    transition: r 0.15s;
-  }
-  .rivet.corner {
+  .corner-dot {
     fill: #ffe07a;
     stroke: #8a6320;
+    stroke-width: 0.7;
+    pointer-events: none;
   }
 
   /* brass workings */
   /* given: a full brass disc (all angles at the point are known) */
   .pin-disc {
     fill: url(#brass);
-    stroke: #6f521a;
-    stroke-width: 1;
   }
-  /* needed/working angle: brass ring sector (two radii + arc), steel interior */
-  .pin-ring {
+  /* needed/working angle: just a brass arc over steel (the gap to find) */
+  .pin-arc {
     fill: none;
     stroke: url(#brass);
-    stroke-width: 4.5;
-    stroke-linejoin: round;
+    stroke-width: 3.4;
+    stroke-linecap: round;
   }
-  .pin-ring.pending {
+  .pin-arc.pending {
     stroke: url(#brassLit);
-    stroke-width: 5.5;
+    stroke-width: 4.2;
   }
   /* solved: the steel interior fills with brass */
   .pin-fill {
     fill: url(#brassLit);
-    stroke: #8a6320;
-    stroke-width: 1.2;
-    stroke-linejoin: round;
-    filter: drop-shadow(0 0 4px rgba(255, 205, 100, 0.55));
+    filter: drop-shadow(0 0 4px rgba(255, 205, 100, 0.5));
   }
   .pin-fill.flash {
     fill: #fff2cf;
     filter: drop-shadow(0 0 9px rgba(255, 220, 120, 0.95));
+  }
+  /* bevel source for brass edges — ~half the steel cut girth */
+  .brass-edge {
+    fill: none;
+    stroke: #fff;
+    stroke-width: 1;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
   .tri-preview {
     fill: rgba(230, 185, 80, 0.18);

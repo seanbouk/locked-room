@@ -32,10 +32,12 @@ export interface Drawn {
     vy: number;
     /** filled pie slice at the pin radius (for a solved angle) */
     sector: string;
+    /** just the outer arc (for a needed angle — no radii) */
+    arc: string;
   }>;
 }
 
-export const PIN_R = 24;
+export const PIN_R = 16;
 
 // Maths -> screen: keep x, flip y so the figure looks the way it's described.
 const sx = (p: Point) => p.x;
@@ -99,8 +101,9 @@ export function drawPuzzle(p: Puzzle): Drawn {
     const p1x = vx + tx * PIN_R;
     const p1y = vy + ty * PIN_R;
     const sector = `M ${vx} ${vy} L ${p0x} ${p0y} A ${PIN_R} ${PIN_R} 0 0 ${sweep} ${p1x} ${p1y} Z`;
+    const arc = `M ${p0x} ${p0y} A ${PIN_R} ${PIN_R} 0 0 ${sweep} ${p1x} ${p1y}`;
 
-    return { id: a.id, vertex: a.vertex, vx, vy, sector };
+    return { id: a.id, vertex: a.vertex, vx, vy, sector, arc };
   });
 
   return {
