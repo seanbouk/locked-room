@@ -347,14 +347,16 @@
         </defs>
 
         <!-- the two doors (brushed steel) -->
-        <rect x="-125" y="-275" width="250" height="550" fill="url(#steel)" />
-        <rect x="-125" y="-275" width="250" height="550" fill="#d2d8df" filter="url(#brushed)" opacity="0.16" />
+        <rect x="-125" y="-175" width="250" height="550" fill="url(#steel)" />
+        <rect x="-125" y="-175" width="250" height="550" fill="#d2d8df" filter="url(#brushed)" opacity="0.16" />
 
-        <!-- seam between the doors; the lock disc covers the middle -->
-        <g class="relief" filter="url(#relief)">
-          <line x1="0" y1="-275" x2="0" y2="275" class="cut seam" />
-        </g>
-        <line x1="0" y1="-275" x2="0" y2="275" class="kerf seam" />
+        <!-- seam between the doors; the lock disc covers the middle. Bevelled
+             with explicit offset lips (the relief filter can't resolve a bevel
+             on a full-height hairline). Vertical, lit top-left: bright lip left,
+             shadow lip right, black kerf down the centre. -->
+        <line x1="0" y1="-175" x2="0" y2="375" class="seam-lip light" transform="translate(-0.95 0)" />
+        <line x1="0" y1="-175" x2="0" y2="375" class="seam-lip shadow" transform="translate(0.95 0)" />
+        <line x1="0" y1="-175" x2="0" y2="375" class="kerf seam" />
 
         <!-- the lock disc -->
         <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} fill="url(#disc)" />
@@ -540,18 +542,19 @@
   .rooms-btn:hover {
     border-color: #ffe07a;
   }
+  /* sits just below the lock (which bottoms out at ~50% of the tall board) so
+     the game clusters near the top; steel + seam carry on down behind it */
   .hud-bottom {
     position: absolute;
-    bottom: 0;
+    top: 51%;
     left: 0;
     right: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.5rem;
-    padding: 1.4rem 0.8rem 1rem;
+    gap: 0.55rem;
+    padding: 0.5rem 0.8rem;
     pointer-events: none;
-    background: linear-gradient(to top, rgba(8, 12, 20, 0.66), rgba(8, 12, 20, 0));
   }
   .hud-bottom .prompt,
   .hud-bottom .tray,
@@ -592,6 +595,17 @@
   }
   .kerf.radius {
     stroke-dasharray: 7 7;
+  }
+  /* explicit bevel lips for the vertical seam */
+  .seam-lip {
+    stroke-width: 1.3;
+    stroke-linecap: round;
+  }
+  .seam-lip.light {
+    stroke: #d4dae1;
+  }
+  .seam-lip.shadow {
+    stroke: #353b44;
   }
 
   .rivet {
@@ -681,6 +695,9 @@
     text-align: center;
     font-size: 0.85rem;
     min-height: 1.2rem;
+    color: #1c222c;
+    font-weight: 600;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
   }
   .prompt.subtle {
     opacity: 0.4;
@@ -723,6 +740,7 @@
     cursor: grabbing;
   }
   .ki {
+    display: block;
     width: 28px;
     height: 28px;
   }
