@@ -13,7 +13,15 @@ export interface Drawn {
   circle: { cx: number; cy: number; r: number };
   segments: Array<{ id: string; x1: number; y1: number; x2: number; y2: number; kind: string }>;
   points: Array<{ id: string; x: number; y: number; lx: number; ly: number }>;
-  angles: Array<{ id: string; vertex: string; wedge: string; ix: number; iy: number }>;
+  angles: Array<{
+    id: string;
+    vertex: string;
+    wedge: string;
+    ix: number;
+    iy: number;
+    vx: number;
+    vy: number;
+  }>;
 }
 
 const WEDGE_R = 26;
@@ -71,7 +79,7 @@ export function drawPuzzle(p: Puzzle): Drawn {
     const ix = vx + Math.cos(bis) * WEDGE_R * 0.6;
     const iy = vy + Math.sin(bis) * WEDGE_R * 0.6;
 
-    return { id: a.id, vertex: a.vertex, wedge, ix, iy };
+    return { id: a.id, vertex: a.vertex, wedge, ix, iy, vx, vy };
   });
 
   return {

@@ -4,44 +4,47 @@
   import { ALL_KEYS, type Placement } from '../engine/theorems';
   import type { Level } from '../engine/levels';
 
-  let { level, onComplete }: { level: Level; onComplete: () => void } = $props();
+  let {
+    level,
+    unlockedKeys,
+    onComplete,
+  }: { level: Level; unlockedKeys: string[]; onComplete: () => void } = $props();
 
-  // Fresh lock per level (parent remounts via {#key}).
+  // Stable display order for the full keyring (locked keys are shown too).
+  const KEY_ORDER = ['semicircle', 'triangle-sum', 'same-segment', 'angle-at-centre', 'isosceles-radii'];
+  const allKeys = KEY_ORDER.map((id) => ALL_KEYS[id]).filter(Boolean);
+
   const lock = new Lock(level.puzzle);
   const drawn = drawPuzzle(level.puzzle);
   const givenSet = new Set(level.puzzle.givens);
   const targetSet = new Set(level.puzzle.targets);
 
   let solved = $state(new Set<string>(lock.solvedIds()));
-  let selectedKey = $state<string | null>(null);
   let isOpen = $state(lock.isOpen);
   let flash = $state(new Set<string>());
   let appliedLabels = $state(new Set<string>());
   let toast = $state('');
+  let shake = $state(false);
 
-  const availableKeys = level.puzzle.keys.map((id) => ALL_KEYS[id]).filter(Boolean);
+  // A key being dragged from the tray toward the board.
+  let drag = $state<null | { keyId: string; x: number; y: number }>(null);
+  // A multi-part theorem mid-application: the active key + angles chosen so far.
+  let pending = $state<null | { keyId: string; chosen: string[] }>(null);
 
-  const candidates = $derived(
-    selectedKey
-      ? lock
-          .availablePlacements()
-          .filter((p) => p.keyId === selectedKey && !appliedLabels.has(p.label))
-      : [],
-  );
-  const highlighted = $derived(new Set(candidates.flatMap((p) => p.angleIds)));
-
-  function indicator(id: string) {
-    return drawn.angles.find((a) => a.id === id)!;
+  function isUnlocked(id: string) {
+    return unlockedKeys.includes(id);
   }
-  function markerPos(p: Placement) {
-    const pts = p.angleIds.map(indicator);
-    const x = pts.reduce((s, a) => s + a.ix, 0) / pts.length;
-    const y = pts.reduce((s, a) => s + a.iy, 0) / pts.length;
-    return { x, y };
+
+  // Placements over the player's whole keyring (not just the level's intended
+  // set) so any unlocked theorem can be tried anywhere it genuinely holds.
+  function placementsFor(keyId: string): Placement[] {
+    return lock
+      .availablePlacements(unlockedKeys)
+      .filter((p) => p.keyId === keyId && !appliedLabels.has(p.label));
   }
 
   function angleClass(id: string): string {
-    if (highlighted.has(id)) return 'angle highlight';
+    if (pending?.chosen.includes(id)) return 'angle pending';
     if (flash.has(id)) return 'angle flash';
     if (solved.has(id) && !givenSet.has(id)) return 'angle solved';
     if (givenSet.has(id)) return 'angle given';
@@ -49,35 +52,79 @@
     return 'angle';
   }
 
+  function reject() {
+    shake = true;
+    setTimeout(() => (shake = false), 260);
+  }
+
   function apply(p: Placement) {
     const newIds = lock.apply(p);
     appliedLabels = new Set([...appliedLabels, p.label]);
     solved = new Set(lock.solvedIds());
-    selectedKey = null;
+    pending = null;
     if (newIds.length) {
       flash = new Set(newIds);
       setTimeout(() => (flash = new Set()), 900);
     } else {
-      toast = 'A true statement — but it doesn’t pin anything down yet.';
-      setTimeout(() => (toast = ''), 2000);
+      toast = 'The key turns — but nothing gives yet.';
+      setTimeout(() => (toast = ''), 1800);
     }
     if (lock.isOpen) setTimeout(() => (isOpen = true), 650);
   }
 
-  function onKey(e: KeyboardEvent, p: Placement) {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      apply(p);
+  function processDrop(keyId: string, angleId: string) {
+    const places = placementsFor(keyId);
+    if (!pending) {
+      const containing = places.filter((p) => p.angleIds.includes(angleId));
+      if (!containing.length) return reject();
+      if (containing[0].angleIds.length === 1) return apply(containing[0]);
+      pending = { keyId, chosen: [angleId] }; // begin a multi-part pick
+    } else {
+      if (keyId !== pending.keyId) return;
+      if (pending.chosen.includes(angleId)) return;
+      const chosen = [...pending.chosen, angleId];
+      const compat = places.filter((p) => chosen.every((a) => p.angleIds.includes(a)));
+      if (!compat.length) return reject(); // this angle isn't linked — stay pending
+      const done = compat.find((p) => p.angleIds.length === chosen.length);
+      if (done) apply(done);
+      else pending = { keyId, chosen };
     }
   }
+
+  // ── Pointer-based drag (works for mouse and touch) ──────────────────────────
+  function onMove(e: PointerEvent) {
+    if (drag) drag = { ...drag, x: e.clientX, y: e.clientY };
+  }
+  function onUp(e: PointerEvent) {
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    const d = drag;
+    drag = null;
+    if (!d) return;
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const target = el?.closest('[data-angle]');
+    if (target) processDrop(d.keyId, target.getAttribute('data-angle')!);
+    else reject();
+  }
+  function startDrag(e: PointerEvent, keyId: string) {
+    if (!isUnlocked(keyId)) return;
+    if (pending && pending.keyId !== keyId) return; // only the active key while pending
+    e.preventDefault();
+    drag = { keyId, x: e.clientX, y: e.clientY };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  }
+
+  function onKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape') pending = null;
+  }
+
+  const pendingName = $derived(pending ? ALL_KEYS[pending.keyId].name : '');
 </script>
 
-<div class="screen">
-  <header>
-    <h2>Room {level.id} · {level.title}</h2>
-    <p>{level.intro}</p>
-  </header>
+<svelte:window onkeydown={onKeydown} />
 
+<div class="screen" class:shake>
   <div class="stage">
     <svg viewBox={drawn.viewBox} class:open={isOpen} role="img" aria-label="circle puzzle">
       <defs>
@@ -102,78 +149,81 @@
         <text x={pt.lx} y={pt.ly} class="plabel">{pt.id}</text>
       {/each}
 
-      <!-- markers for unsolved targets -->
       {#each drawn.angles as a (a.id)}
-        {#if targetSet.has(a.id) && !solved.has(a.id) && !highlighted.has(a.id)}
+        {#if targetSet.has(a.id) && !solved.has(a.id) && !pending?.chosen.includes(a.id)}
           <text x={a.ix} y={a.iy} class="qmark">?</text>
         {/if}
       {/each}
 
-      <!-- clickable placement markers when a key is selected -->
-      {#each candidates as p (p.label)}
-        {@const m = markerPos(p)}
-        <g
-          class="placement"
-          role="button"
-          tabindex="0"
-          aria-label={p.label}
-          onclick={() => apply(p)}
-          onkeydown={(e) => onKey(e, p)}
-        >
-          <circle cx={m.x} cy={m.y} r="11" class="pmark" />
-          <text x={m.x} y={m.y + 0.5} class="pglyph">⚷</text>
-        </g>
+      <!-- invisible drop targets, on top so elementFromPoint finds them -->
+      {#each drawn.angles as a (a.id)}
+        <circle cx={a.vx} cy={a.vy} r="28" class="hit" data-angle={a.id} />
       {/each}
     </svg>
-
-    {#if isOpen}
-      <div class="opened">
-        <div class="door"></div>
-        <h3>The lock opens.</h3>
-        <button class="continue" onclick={onComplete}>Step through →</button>
-      </div>
-    {/if}
   </div>
 
+  {#if pending}
+    <div class="prompt">
+      Keep applying the <b>{pendingName}</b> — link it to the angles it connects.
+      <button class="cancel" onclick={() => (pending = null)}>✕ cancel</button>
+    </div>
+  {:else}
+    <div class="prompt subtle">Drag a key onto the figure. It only catches where its rule is true.</div>
+  {/if}
+
   <div class="tray">
-    <span class="tray-label">Skeleton keys</span>
-    {#each availableKeys as k (k.id)}
-      <button
+    {#each allKeys as k (k.id)}
+      {@const locked = !isUnlocked(k.id)}
+      {@const active = pending?.keyId === k.id}
+      {@const dimmed = pending && !active}
+      <div
         class="key"
-        class:selected={selectedKey === k.id}
-        title={k.blurb}
-        onclick={() => (selectedKey = selectedKey === k.id ? null : k.id)}
+        class:locked
+        class:active
+        class:dimmed
+        title={locked ? 'Locked — win this key in an earlier room' : k.blurb}
+        onpointerdown={(e) => startDrag(e, k.id)}
       >
-        <span class="key-glyph">⚷</span>
+        <span class="key-glyph">{locked ? '🔒' : '⚷'}</span>
         <span class="key-name">{k.name}</span>
-      </button>
+      </div>
     {/each}
   </div>
 
   {#if toast}<div class="toast">{toast}</div>{/if}
-  {#if selectedKey && candidates.length === 0}
-    <div class="toast">This key fits nowhere new here — try another.</div>
+
+  {#if isOpen}
+    <div class="opened">
+      <div class="door"></div>
+      <h3>The lock opens.</h3>
+      <button class="continue" onclick={onComplete}>Step through →</button>
+    </div>
+  {/if}
+
+  {#if drag}
+    <div class="ghost" style="left:{drag.x}px; top:{drag.y}px">⚷</div>
   {/if}
 </div>
 
 <style>
   .screen {
     display: grid;
-    grid-template-rows: auto 1fr auto;
-    gap: 0.75rem;
+    grid-template-rows: 1fr auto auto;
+    gap: 0.6rem;
     height: 100%;
     color: #e8edf7;
+    user-select: none;
   }
-  header h2 {
-    margin: 0;
-    font-size: 1.1rem;
-    letter-spacing: 0.02em;
+  .screen.shake {
+    animation: shake 0.26s;
   }
-  header p {
-    margin: 0.15rem 0 0;
-    opacity: 0.7;
-    font-size: 0.9rem;
-    max-width: 46ch;
+  @keyframes shake {
+    25% {
+      transform: translateX(-5px);
+    }
+    75% {
+      transform: translateX(5px);
+    }
   }
   .stage {
     position: relative;
@@ -182,10 +232,11 @@
     min-height: 0;
   }
   svg {
-    width: min(70vh, 100%);
+    width: min(66vh, 100%);
     height: auto;
     aspect-ratio: 1;
     transition: filter 0.6s ease;
+    touch-action: none;
   }
   svg.open {
     filter: drop-shadow(0 0 24px rgba(120, 220, 170, 0.55));
@@ -214,9 +265,13 @@
     dominant-baseline: middle;
     font-family: ui-sans-serif, system-ui, sans-serif;
   }
+  .hit {
+    fill: transparent;
+    cursor: default;
+  }
   .angle {
-    fill: rgba(150, 170, 210, 0.1);
-    stroke: rgba(150, 170, 210, 0.4);
+    fill: rgba(150, 170, 210, 0.08);
+    stroke: rgba(150, 170, 210, 0.3);
     stroke-width: 1;
     transition: fill 0.3s, stroke 0.3s;
   }
@@ -225,7 +280,7 @@
     stroke: #f0c45a;
   }
   .angle.target {
-    fill: rgba(120, 200, 255, 0.08);
+    fill: rgba(120, 200, 255, 0.06);
     stroke: #6db6ff;
     stroke-dasharray: 4 3;
   }
@@ -234,8 +289,8 @@
     stroke: #6ee1a5;
     stroke-width: 1.6;
   }
-  .angle.highlight {
-    fill: rgba(255, 230, 150, 0.35);
+  .angle.pending {
+    fill: rgba(255, 224, 122, 0.3);
     stroke: #ffe07a;
     stroke-width: 2;
     animation: pulse 1.1s ease-in-out infinite;
@@ -247,7 +302,7 @@
   }
   @keyframes pulse {
     50% {
-      stroke-opacity: 0.45;
+      stroke-opacity: 0.4;
     }
   }
   .qmark {
@@ -256,41 +311,32 @@
     font-weight: 700;
     text-anchor: middle;
     dominant-baseline: middle;
-  }
-  .placement {
-    cursor: pointer;
-  }
-  .pmark {
-    fill: rgba(255, 224, 122, 0.18);
-    stroke: #ffe07a;
-    stroke-width: 1.6;
-    animation: pulse 1.1s ease-in-out infinite;
-  }
-  .placement:hover .pmark {
-    fill: rgba(255, 224, 122, 0.4);
-  }
-  .pglyph {
-    fill: #ffe07a;
-    font-size: 12px;
-    text-anchor: middle;
-    dominant-baseline: middle;
     pointer-events: none;
+  }
+  .prompt {
+    text-align: center;
+    font-size: 0.85rem;
+    min-height: 1.2rem;
+  }
+  .prompt.subtle {
+    opacity: 0.45;
+  }
+  .cancel {
+    margin-left: 0.5rem;
+    background: none;
+    border: none;
+    color: #ff9b9b;
+    cursor: pointer;
+    font-size: 0.8rem;
   }
   .tray {
     display: flex;
     gap: 0.5rem;
     flex-wrap: wrap;
-    align-items: center;
+    justify-content: center;
     padding: 0.5rem;
     background: rgba(255, 255, 255, 0.04);
     border-radius: 12px;
-  }
-  .tray-label {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    opacity: 0.5;
-    margin-right: 0.25rem;
   }
   .key {
     display: inline-flex;
@@ -301,20 +347,43 @@
     border: 1px solid #3a4a73;
     background: #18233d;
     color: #dce4f5;
-    cursor: pointer;
+    cursor: grab;
     font-size: 0.85rem;
-    transition: all 0.15s;
+    touch-action: none;
+    transition: opacity 0.15s, box-shadow 0.15s, border-color 0.15s;
   }
-  .key:hover {
-    border-color: #ffe07a;
+  .key:active {
+    cursor: grabbing;
   }
-  .key.selected {
-    background: #2b3a60;
-    border-color: #ffe07a;
-    box-shadow: 0 0 0 2px rgba(255, 224, 122, 0.25);
-  }
-  .key-glyph {
+  .key .key-glyph {
     color: #ffe07a;
+  }
+  .key.locked {
+    opacity: 0.4;
+    cursor: not-allowed;
+    border-style: dashed;
+  }
+  .key.locked .key-glyph {
+    color: #8aa0cc;
+  }
+  .key.dimmed {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+  .key.active {
+    border-color: #ffe07a;
+    box-shadow: 0 0 0 2px rgba(255, 224, 122, 0.35);
+    background: #2b3a60;
+    animation: pulse 1.1s ease-in-out infinite;
+  }
+  .ghost {
+    position: fixed;
+    transform: translate(-50%, -50%);
+    font-size: 1.8rem;
+    color: #ffe07a;
+    pointer-events: none;
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.6));
+    z-index: 50;
   }
   .toast {
     position: absolute;

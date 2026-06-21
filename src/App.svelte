@@ -4,93 +4,117 @@
   import { progress } from './lib/stores/progress.svelte';
   import GameScreen from './lib/components/GameScreen.svelte';
 
-  type View = 'map' | 'play' | 'reward';
-  let view = $state<View>('map');
-  let currentId = $state(1);
-  let awardedKeyId = $state<string | null>(null);
+  function firstUnfinished(): number {
+    const inc = LEVELS.find((l) => progress.isUnlocked(l.id) && !progress.isComplete(l.id));
+    return inc ? inc.id : LEVELS[LEVELS.length - 1].id;
+  }
+
+  let currentId = $state(firstUnfinished());
+  let showRooms = $state(false);
+  let rewardKeyId = $state<string | null>(null);
+  let nextAfterReward = $state<number | null>(null);
 
   const currentLevel = $derived(LEVELS.find((l) => l.id === currentId)!);
 
-  function openLevel(id: number) {
+  function goTo(id: number) {
     if (!progress.isUnlocked(id)) return;
     currentId = id;
-    view = 'play';
+    showRooms = false;
+  }
+
+  function advance(next: number | null) {
+    if (next) currentId = next;
+    else showRooms = true; // finished the last room — show the overview
   }
 
   function handleComplete() {
     const awarded = progress.complete(currentId);
+    const next = currentId < LEVELS.length ? currentId + 1 : null;
     if (awarded) {
-      awardedKeyId = awarded;
-      view = 'reward';
+      rewardKeyId = awarded;
+      nextAfterReward = next;
     } else {
-      view = 'map';
+      advance(next);
     }
   }
 
-  function afterReward() {
-    awardedKeyId = null;
-    view = 'map';
+  function dismissReward() {
+    const next = nextAfterReward;
+    rewardKeyId = null;
+    nextAfterReward = null;
+    advance(next);
   }
-
-  const nextId = $derived(LEVELS.find((l) => progress.isUnlocked(l.id) && !progress.isComplete(l.id))?.id);
 </script>
 
 <main>
   <div class="frame">
-    {#if view === 'map'}
-      <h1>Locked Room</h1>
-      <p class="tag">Pick the lock with the theorems you carry.</p>
+    <header class="bar">
+      <span class="brand">Locked&nbsp;Room</span>
+      <span class="here">Room {currentLevel.id} · {currentLevel.title}</span>
+      <button class="rooms-btn" onclick={() => (showRooms = true)}>▦ Rooms</button>
+    </header>
 
-      <div class="rooms">
-        {#each LEVELS as lvl (lvl.id)}
-          {@const unlocked = progress.isUnlocked(lvl.id)}
-          {@const done = progress.isComplete(lvl.id)}
-          <button
-            class="room"
-            class:done
-            class:locked={!unlocked}
-            disabled={!unlocked}
-            onclick={() => openLevel(lvl.id)}
-          >
-            <span class="rnum">{lvl.id}</span>
-            <span class="rtitle">{unlocked ? lvl.title : 'Locked'}</span>
-            <span class="rstate">{done ? '✓ open' : unlocked ? '○' : '🔒'}</span>
-          </button>
-        {/each}
-      </div>
+    <p class="intro">{currentLevel.intro}</p>
 
-      <div class="kit">
-        <span class="kit-label">Keys won</span>
-        {#each progress.unlockedKeys as id (id)}
-          <span class="kchip" title={ALL_KEYS[id]?.blurb}>⚷ {ALL_KEYS[id]?.name ?? id}</span>
-        {/each}
-      </div>
-
-      {#if nextId}
-        <button class="cta" onclick={() => openLevel(nextId)}>
-          {progress.completed.length ? 'Continue' : 'Begin'} → Room {nextId}
-        </button>
-      {:else}
-        <p class="tag">Every room open. More to come.</p>
-      {/if}
-
-      <button class="reset" onclick={() => progress.reset()}>reset progress</button>
-    {:else if view === 'play'}
-      <button class="back" onclick={() => (view = 'map')}>← rooms</button>
-      <div class="playwrap">
-        {#key currentId}
-          <GameScreen level={currentLevel} onComplete={handleComplete} />
-        {/key}
-      </div>
-    {:else if view === 'reward' && awardedKeyId}
-      <div class="reward">
-        <div class="bigkey">⚷</div>
-        <h2>You won the {ALL_KEYS[awardedKeyId].name}</h2>
-        <p class="tag">{ALL_KEYS[awardedKeyId].blurb}</p>
-        <button class="cta" onclick={afterReward}>Add to keyring</button>
-      </div>
-    {/if}
+    <div class="playwrap">
+      {#key currentId}
+        <GameScreen
+          level={currentLevel}
+          unlockedKeys={progress.unlockedKeys}
+          onComplete={handleComplete}
+        />
+      {/key}
+    </div>
   </div>
+
+  {#if showRooms}
+    <div class="modal-bg" onclick={() => (showRooms = false)} role="presentation">
+      <div class="modal" onclick={(e) => e.stopPropagation()} role="dialog" aria-label="Rooms">
+        <div class="modal-head">
+          <h2>Rooms</h2>
+          <button class="x" onclick={() => (showRooms = false)}>✕</button>
+        </div>
+        <div class="rooms">
+          {#each LEVELS as lvl (lvl.id)}
+            {@const unlocked = progress.isUnlocked(lvl.id)}
+            {@const done = progress.isComplete(lvl.id)}
+            <button
+              class="room"
+              class:done
+              class:locked={!unlocked}
+              class:current={lvl.id === currentId}
+              disabled={!unlocked}
+              onclick={() => goTo(lvl.id)}
+            >
+              <span class="rnum">Room {lvl.id}</span>
+              <span class="rtitle">{unlocked ? lvl.title : 'Locked'}</span>
+              <span class="rstate">{done ? '✓ open' : unlocked ? '○ open it' : '🔒'}</span>
+            </button>
+          {/each}
+        </div>
+        <div class="kit">
+          <span class="kit-label">Keys won</span>
+          {#each progress.unlockedKeys as id (id)}
+            <span class="kchip" title={ALL_KEYS[id]?.blurb}>⚷ {ALL_KEYS[id]?.name ?? id}</span>
+          {/each}
+        </div>
+        <button class="reset" onclick={() => { progress.reset(); currentId = 1; showRooms = false; }}>
+          reset all progress
+        </button>
+      </div>
+    </div>
+  {/if}
+
+  {#if rewardKeyId}
+    <div class="modal-bg" role="presentation">
+      <div class="modal reward" role="dialog" aria-label="New key">
+        <div class="bigkey">⚷</div>
+        <h2>You won the {ALL_KEYS[rewardKeyId].name}</h2>
+        <p class="blurb">{ALL_KEYS[rewardKeyId].blurb}</p>
+        <button class="continue" onclick={dismissReward}>Add to keyring & continue →</button>
+      </div>
+    </div>
+  {/if}
 </main>
 
 <style>
@@ -102,47 +126,112 @@
   }
   .frame {
     width: min(880px, 100%);
-    min-height: min(640px, 92vh);
+    height: min(720px, 94vh);
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    padding: 1.25rem 1.5rem;
+    gap: 0.5rem;
+    padding: 1rem 1.4rem 1.2rem;
     border-radius: 18px;
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.07);
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
   }
-  h1 {
-    margin: 0;
-    font-size: 2rem;
+  .bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .brand {
+    font-weight: 700;
     letter-spacing: 0.04em;
   }
-  .tag {
+  .here {
+    flex: 1;
+    opacity: 0.65;
+    font-size: 0.9rem;
+  }
+  .rooms-btn {
+    background: #18233d;
+    border: 1px solid #3a4a73;
+    color: #dce4f5;
+    border-radius: 9px;
+    padding: 0.35rem 0.7rem;
+    cursor: pointer;
+    font-size: 0.85rem;
+  }
+  .rooms-btn:hover {
+    border-color: #ffe07a;
+  }
+  .intro {
     margin: 0;
     opacity: 0.7;
+    font-size: 0.9rem;
+    min-height: 1.2rem;
+  }
+  .playwrap {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .modal-bg {
+    position: fixed;
+    inset: 0;
+    background: rgba(4, 7, 14, 0.7);
+    backdrop-filter: blur(3px);
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    z-index: 100;
+    animation: fade 0.2s ease;
+  }
+  .modal {
+    width: min(560px, 100%);
+    background: #111a2e;
+    border: 1px solid #2c3a5e;
+    border-radius: 16px;
+    padding: 1.2rem 1.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+  }
+  .modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .modal-head h2 {
+    margin: 0;
+  }
+  .x {
+    background: none;
+    border: none;
+    color: #8aa0cc;
+    font-size: 1.1rem;
+    cursor: pointer;
   }
   .rooms {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 0.7rem;
+    gap: 0.6rem;
   }
   .room {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 0.25rem;
-    padding: 0.8rem;
-    border-radius: 12px;
+    gap: 0.2rem;
+    padding: 0.7rem;
+    border-radius: 11px;
     border: 1px solid #2c3a5e;
     background: #141d33;
     color: #e8edf7;
     cursor: pointer;
     text-align: left;
-    transition: all 0.15s;
   }
   .room:hover:not(:disabled) {
     border-color: #ffe07a;
-    transform: translateY(-2px);
   }
   .room.locked {
     opacity: 0.4;
@@ -151,15 +240,18 @@
   .room.done {
     border-color: #6ee1a5;
   }
+  .room.current {
+    box-shadow: 0 0 0 2px rgba(255, 224, 122, 0.4);
+  }
   .rnum {
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     opacity: 0.5;
   }
   .rtitle {
     font-weight: 600;
   }
   .rstate {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     opacity: 0.7;
   }
   .kit {
@@ -182,51 +274,43 @@
     border: 1px solid rgba(255, 224, 122, 0.4);
     color: #ffe7a8;
   }
-  .cta {
-    align-self: flex-start;
-    margin-top: auto;
-    padding: 0.7rem 1.2rem;
-    border-radius: 10px;
-    border: none;
-    background: #ffe07a;
-    color: #1a1303;
-    font-weight: 700;
-    font-size: 0.95rem;
-    cursor: pointer;
-  }
-  .back,
   .reset {
     align-self: flex-start;
     background: none;
     border: none;
     color: #8aa0cc;
     cursor: pointer;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
+    opacity: 0.6;
     padding: 0;
   }
-  .reset {
-    margin-top: 0.25rem;
-    opacity: 0.5;
-  }
-  .playwrap {
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-  }
   .reward {
-    flex: 1;
-    display: grid;
-    place-content: center;
-    justify-items: center;
-    gap: 0.8rem;
+    align-items: center;
     text-align: center;
   }
+  .blurb {
+    margin: 0;
+    opacity: 0.7;
+  }
   .bigkey {
-    font-size: 4rem;
+    font-size: 3.5rem;
     color: #ffe07a;
     filter: drop-shadow(0 0 20px rgba(255, 220, 120, 0.6));
     animation: rise 0.6s ease;
+  }
+  .continue {
+    padding: 0.6rem 1.1rem;
+    border-radius: 10px;
+    border: none;
+    background: #ffe07a;
+    color: #1a1303;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
   }
   @keyframes rise {
     from {

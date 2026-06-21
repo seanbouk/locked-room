@@ -34,10 +34,15 @@ export class Lock {
     }
   }
 
-  /** Every legal placement of every key available on this level. */
-  availablePlacements(): Placement[] {
+  /**
+   * Every legal placement of the given keys (defaults to the level's intended
+   * set, which is what validation/tests use). The live game passes the player's
+   * full unlocked keyring instead — any theorem may be applied wherever it
+   * genuinely holds, so there is never a single forced solution.
+   */
+  availablePlacements(keyIds: string[] = this.puzzle.keys): Placement[] {
     const out: Placement[] = [];
-    for (const keyId of this.puzzle.keys) {
+    for (const keyId of keyIds) {
       const key = ALL_KEYS[keyId];
       if (key) out.push(...key.match(this.puzzle));
     }
