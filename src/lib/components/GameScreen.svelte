@@ -324,8 +324,9 @@
 
         <!-- seam between the doors; the lock disc covers the middle -->
         <g class="groove">
-          <line x1="0" y1="-125" x2="0" y2="125" class="g-shadow seam" transform="translate(-1.1 -1.1)" />
-          <line x1="0" y1="-125" x2="0" y2="125" class="g-light seam" transform="translate(1.1 1.1)" />
+          <line x1="0" y1="-125" x2="0" y2="125" class="cut-core seam" />
+          <line x1="0" y1="-125" x2="0" y2="125" class="cut-sh seam" transform="translate(0.95 0)" />
+          <line x1="0" y1="-125" x2="0" y2="125" class="cut-hi seam" transform="translate(-0.95 0)" />
         </g>
 
         <!-- the lock disc -->
@@ -338,8 +339,9 @@
         <!-- chords, engraved as bevelled grooves -->
         <g clip-path="url(#discClip)">
           {#each drawn.segments as s (s.id)}
-            <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} class="g-shadow {s.kind}" transform="translate(-0.9 -0.9)" />
-            <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} class="g-light {s.kind}" transform="translate(0.9 0.9)" />
+            <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} class="cut-core {s.kind}" />
+            <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} class="cut-sh {s.kind}" transform="translate({s.sh.x} {s.sh.y})" />
+            <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} class="cut-hi {s.kind}" transform="translate({s.hi.x} {s.hi.y})" />
           {/each}
         </g>
 
@@ -461,24 +463,34 @@
     filter: drop-shadow(0 0 24px rgba(255, 210, 120, 0.5));
   }
 
-  /* engraved grooves — light from top-left lights the lower-right wall */
-  .g-shadow {
-    stroke: #3e444d;
-    stroke-width: 2.4;
+  /* a fine cut in steel: a dark core, a bright lip on the top-left (lit) side,
+     a dark lip on the shadow side */
+  .cut-core {
+    stroke: #444b54;
+    stroke-width: 0.8;
     stroke-linecap: round;
   }
-  .g-light {
-    stroke: #d3d9e0;
-    stroke-width: 2.4;
+  .cut-hi {
+    stroke: #f1f5f9;
+    stroke-width: 1.05;
     stroke-linecap: round;
   }
-  .g-shadow.radius,
-  .g-light.radius {
+  .cut-sh {
+    stroke: #23272e;
+    stroke-width: 1.05;
+    stroke-linecap: round;
+  }
+  .cut-core.seam {
+    stroke-width: 1.1;
+  }
+  .cut-hi.seam,
+  .cut-sh.seam {
+    stroke-width: 1.4;
+  }
+  .cut-core.radius,
+  .cut-hi.radius,
+  .cut-sh.radius {
     stroke-dasharray: 6 5;
-  }
-  .g-shadow.seam,
-  .g-light.seam {
-    stroke-width: 3.4;
   }
   .rim-shadow,
   .rim-light {

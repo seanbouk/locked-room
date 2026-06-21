@@ -11,7 +11,19 @@ import { point as lookup } from '../engine/puzzle';
 export interface Drawn {
   viewBox: string;
   circle: { cx: number; cy: number; r: number };
-  segments: Array<{ id: string; x1: number; y1: number; x2: number; y2: number; kind: string }>;
+  segments: Array<{
+    id: string;
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+    kind: string;
+    // Perpendicular offsets (svg units) for the bevel lips of a fine cut: the
+    // highlight lip sits on the side facing the top-left light, the shadow lip
+    // opposite. Each line is drawn as two thin strokes at these offsets.
+    hi: { x: number; y: number };
+    sh: { x: number; y: number };
+  }>;
   points: Array<{ id: string; x: number; y: number; lx: number; ly: number }>;
   angles: Array<{
     id: string;
@@ -35,6 +47,20 @@ function norm(dx: number, dy: number): [number, number] {
   return [dx / m, dy / m];
 }
 
+const BEVEL = 0.95; // half-gap between a cut's two bevel lips, in svg units
+
+/** Offsets for the highlight/shadow lips of a fine cut, lit from the top-left. */
+export function bevelOffsets(x1: number, y1: number, x2: number, y2: number) {
+  // Normal to the line.
+  let [nx, ny] = norm(-(y2 - y1), x2 - x1);
+  // Point the highlight lip toward the top-left (negative x and y in screen space).
+  if (nx + ny > 0) {
+    nx = -nx;
+    ny = -ny;
+  }
+  return { hi: { x: nx * BEVEL, y: ny * BEVEL }, sh: { x: -nx * BEVEL, y: -ny * BEVEL } };
+}
+
 export function drawPuzzle(p: Puzzle): Drawn {
   const c = p.circle;
   const cx = c.cx;
@@ -43,7 +69,8 @@ export function drawPuzzle(p: Puzzle): Drawn {
   const segments = p.segments.map((s: Segment) => {
     const a = lookup(p, s.a);
     const b = lookup(p, s.b);
-    return { id: `${s.a}-${s.b}`, x1: sx(a), y1: sy(a), x2: sx(b), y2: sy(b), kind: s.kind };
+    const [x1, y1, x2, y2] = [sx(a), sy(a), sx(b), sy(b)];
+    return { id: `${s.a}-${s.b}`, x1, y1, x2, y2, kind: s.kind, ...bevelOffsets(x1, y1, x2, y2) };
   });
 
   const points = p.points.map((pt) => {
