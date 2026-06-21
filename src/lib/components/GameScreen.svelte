@@ -321,17 +321,18 @@
                the steel (flat areas ~neutral) so the cut sits in the surface. A
                little specular adds a glint on the lit wall. -->
           <filter id="relief" x="-40%" y="-40%" width="180%" height="180%" color-interpolation-filters="sRGB">
-            <feGaussianBlur in="SourceAlpha" stdDeviation="1.7" result="b" />
-            <feDiffuseLighting in="b" surfaceScale="-5.5" diffuseConstant="1" lighting-color="#a7a7a7" result="diff">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="1.1" result="b" />
+            <!-- bevel walls: shade the blurred height map, flat level ~neutral -->
+            <feDiffuseLighting in="b" surfaceScale="-4" diffuseConstant="1" lighting-color="#a7a7a7" result="diff">
               <feDistantLight azimuth="225" elevation="50" />
             </feDiffuseLighting>
-            <feSpecularLighting in="b" surfaceScale="-5.5" specularConstant="0.6" specularExponent="18" lighting-color="#ffffff" result="spec">
-              <feDistantLight azimuth="225" elevation="50" />
-            </feSpecularLighting>
-            <feComposite in="spec" in2="SourceAlpha" operator="in" result="specClip" />
+            <!-- the cut itself: a thin dark core eroded from the stroke centre -->
+            <feMorphology in="SourceAlpha" operator="erode" radius="0.7" result="thin" />
+            <feFlood flood-color="#0e1014" result="blk" />
+            <feComposite in="blk" in2="thin" operator="in" result="core" />
             <feMerge>
               <feMergeNode in="diff" />
-              <feMergeNode in="specClip" />
+              <feMergeNode in="core" />
             </feMerge>
           </filter>
           <clipPath id="discClip">
@@ -488,17 +489,17 @@
   }
   .cut {
     stroke: #fff;
-    stroke-width: 4;
+    stroke-width: 2;
     stroke-linecap: round;
   }
   .cut.seam {
-    stroke-width: 4.5;
+    stroke-width: 2.4;
   }
   .cut.radius {
     stroke-dasharray: 7 7;
   }
   .cut.rim {
-    stroke-width: 5;
+    stroke-width: 2.6;
   }
 
   .rivet {
