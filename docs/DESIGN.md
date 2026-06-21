@@ -97,13 +97,18 @@ Gameplay emits events (`angle-solved`, `lock-opened`); the juice layer
 ## 4. Build order
 
 1. ✅ Solver core + tests (no graphics).
-2. SVG per-face renderer for one hand-coded puzzle.
-3. One key: pick-up → highlight valid drops → drop → solve → placeholder "open".
-4. Key progression + 5–10 hand levels + a **level editor/validator** (auto-checks
-   solvability — turns tiring authoring into fast iteration; doubles as test rig).
-5. More keys, more levels, deeper dependency chains.
-6. Juice pass: transitions, particles, light-through-cracks, sound, room flow.
-7. Spotify, mobile/fullscreen polish, itch.io packaging.
+2. ✅ SVG renderer (`render/figure.ts`) — each marked angle its own wedge element.
+3. ✅ Key interaction — select key → candidate placements highlight → click to
+   apply → solved angles light up → lock opens (door animation).
+4. ✅ Key progression (start with Right-Angle, win one per room) + 6 hand levels +
+   automated **solvability validator** (`validate.ts`, enforced in tests). An
+   interactive level *editor* is still TODO (validator logic already exists).
+5. ◧ More keys (5 so far), more levels, deeper chains — ongoing.
+6. ☐ Juice pass: particles, light-through-cracks, richer sound, room-to-room flow.
+7. ☐ Spotify, mobile/fullscreen polish, itch.io packaging.
+
+Verified end-to-end in a headless browser: map → play → solve → lock opens →
+win a key → use it in the next room's two-step chain. 11/11 tests green.
 
 ---
 

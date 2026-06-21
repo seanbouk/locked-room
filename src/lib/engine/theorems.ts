@@ -17,6 +17,7 @@ import {
   isCentre,
   isDiameter,
   onCircle,
+  otherRay,
   sideOfLine,
   subtendedChord,
 } from './puzzle';
@@ -166,9 +167,41 @@ function isTriangle(p: Puzzle, tri: Angle[]): boolean {
   return true;
 }
 
+// ── Base angles of an isosceles triangle (two radii) are equal (propagator) ──
+const isoscelesRadii: SkeletonKey = {
+  id: 'isosceles-radii',
+  name: 'Balance Key',
+  blurb: 'Two radii make an isosceles triangle: its base angles are equal.',
+  match(p) {
+    const out: Placement[] = [];
+    for (let i = 0; i < p.angles.length; i++) {
+      for (let j = i + 1; j < p.angles.length; j++) {
+        const a = p.angles[i];
+        const b = p.angles[j];
+        // Both vertices on the circle (so vertex->centre is a radius)...
+        if (!onCircle(p, a.vertex) || !onCircle(p, b.vertex)) continue;
+        // ...each angle has one ray to the centre...
+        const aOuter = otherRay(a, (id) => isCentre(p, id));
+        const bOuter = otherRay(b, (id) => isCentre(p, id));
+        if (aOuter === null || bOuter === null) continue;
+        // ...and each angle's other ray points at the opposite base vertex.
+        if (aOuter === b.vertex && bOuter === a.vertex) {
+          out.push({ keyId: this.id, angleIds: [a.id, b.id], label: `∠${a.id} = ∠${b.id}` });
+        }
+      }
+    }
+    return out;
+  },
+  equations(_p, place) {
+    const [x, y] = place.angleIds;
+    return [eq({ [x]: 1, [y]: -1 }, 0, `${place.keyId}:${x}=${y}`)];
+  },
+};
+
 export const ALL_KEYS: Record<string, SkeletonKey> = {
   [semicircle.id]: semicircle,
   [sameSegment.id]: sameSegment,
   [angleAtCentre.id]: angleAtCentre,
   [triangleSum.id]: triangleSum,
+  [isoscelesRadii.id]: isoscelesRadii,
 };

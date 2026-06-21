@@ -102,6 +102,18 @@ export function subtendedChord(a: Angle): [string, string] {
   return a.from < a.to ? [a.from, a.to] : [a.to, a.from];
 }
 
+/**
+ * Given that exactly one of an angle's rays satisfies `pred`, return the other
+ * ray's point id. Returns null if zero or both rays satisfy `pred`.
+ */
+export function otherRay(a: Angle, pred: (id: string) => boolean): string | null {
+  const pf = pred(a.from);
+  const pt = pred(a.to);
+  if (pf && !pt) return a.to;
+  if (pt && !pf) return a.from;
+  return null;
+}
+
 /** Which side of line PQ does point R fall on? Sign of the cross product. */
 export function sideOfLine(p: Puzzle, pId: string, qId: string, rId: string): number {
   const P = point(p, pId);

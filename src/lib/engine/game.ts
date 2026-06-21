@@ -11,6 +11,7 @@ import { LinearSystem } from './linear-system';
 import { Fraction } from './fraction';
 import { type Puzzle, trueMeasureDeg } from './puzzle';
 import { ALL_KEYS, type Placement } from './theorems';
+import { truthFilter } from './validate';
 
 export interface AppliedKey {
   placement: Placement;
@@ -40,7 +41,7 @@ export class Lock {
       const key = ALL_KEYS[keyId];
       if (key) out.push(...key.match(this.puzzle));
     }
-    return out;
+    return truthFilter(this.puzzle, out);
   }
 
   /** Drop a key. Returns the angle ids that became solved as a result. */

@@ -1,0 +1,376 @@
+<script lang="ts">
+  import { Lock } from '../engine/game';
+  import { drawPuzzle } from '../render/figure';
+  import { ALL_KEYS, type Placement } from '../engine/theorems';
+  import type { Level } from '../engine/levels';
+
+  let { level, onComplete }: { level: Level; onComplete: () => void } = $props();
+
+  // Fresh lock per level (parent remounts via {#key}).
+  const lock = new Lock(level.puzzle);
+  const drawn = drawPuzzle(level.puzzle);
+  const givenSet = new Set(level.puzzle.givens);
+  const targetSet = new Set(level.puzzle.targets);
+
+  let solved = $state(new Set<string>(lock.solvedIds()));
+  let selectedKey = $state<string | null>(null);
+  let isOpen = $state(lock.isOpen);
+  let flash = $state(new Set<string>());
+  let appliedLabels = $state(new Set<string>());
+  let toast = $state('');
+
+  const availableKeys = level.puzzle.keys.map((id) => ALL_KEYS[id]).filter(Boolean);
+
+  const candidates = $derived(
+    selectedKey
+      ? lock
+          .availablePlacements()
+          .filter((p) => p.keyId === selectedKey && !appliedLabels.has(p.label))
+      : [],
+  );
+  const highlighted = $derived(new Set(candidates.flatMap((p) => p.angleIds)));
+
+  function indicator(id: string) {
+    return drawn.angles.find((a) => a.id === id)!;
+  }
+  function markerPos(p: Placement) {
+    const pts = p.angleIds.map(indicator);
+    const x = pts.reduce((s, a) => s + a.ix, 0) / pts.length;
+    const y = pts.reduce((s, a) => s + a.iy, 0) / pts.length;
+    return { x, y };
+  }
+
+  function angleClass(id: string): string {
+    if (highlighted.has(id)) return 'angle highlight';
+    if (flash.has(id)) return 'angle flash';
+    if (solved.has(id) && !givenSet.has(id)) return 'angle solved';
+    if (givenSet.has(id)) return 'angle given';
+    if (targetSet.has(id)) return 'angle target';
+    return 'angle';
+  }
+
+  function apply(p: Placement) {
+    const newIds = lock.apply(p);
+    appliedLabels = new Set([...appliedLabels, p.label]);
+    solved = new Set(lock.solvedIds());
+    selectedKey = null;
+    if (newIds.length) {
+      flash = new Set(newIds);
+      setTimeout(() => (flash = new Set()), 900);
+    } else {
+      toast = 'A true statement — but it doesn’t pin anything down yet.';
+      setTimeout(() => (toast = ''), 2000);
+    }
+    if (lock.isOpen) setTimeout(() => (isOpen = true), 650);
+  }
+
+  function onKey(e: KeyboardEvent, p: Placement) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      apply(p);
+    }
+  }
+</script>
+
+<div class="screen">
+  <header>
+    <h2>Room {level.id} · {level.title}</h2>
+    <p>{level.intro}</p>
+  </header>
+
+  <div class="stage">
+    <svg viewBox={drawn.viewBox} class:open={isOpen} role="img" aria-label="circle puzzle">
+      <defs>
+        <radialGradient id="glass" cx="40%" cy="35%" r="75%">
+          <stop offset="0%" stop-color="#1b2640" />
+          <stop offset="100%" stop-color="#0d1424" />
+        </radialGradient>
+      </defs>
+
+      <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="rim" />
+
+      {#each drawn.segments as s (s.id)}
+        <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} class="seg {s.kind}" />
+      {/each}
+
+      {#each drawn.angles as a (a.id)}
+        <path d={a.wedge} class={angleClass(a.id)} />
+      {/each}
+
+      {#each drawn.points as pt (pt.id)}
+        <circle cx={pt.x} cy={pt.y} r="3.2" class="vertex" />
+        <text x={pt.lx} y={pt.ly} class="plabel">{pt.id}</text>
+      {/each}
+
+      <!-- markers for unsolved targets -->
+      {#each drawn.angles as a (a.id)}
+        {#if targetSet.has(a.id) && !solved.has(a.id) && !highlighted.has(a.id)}
+          <text x={a.ix} y={a.iy} class="qmark">?</text>
+        {/if}
+      {/each}
+
+      <!-- clickable placement markers when a key is selected -->
+      {#each candidates as p (p.label)}
+        {@const m = markerPos(p)}
+        <g
+          class="placement"
+          role="button"
+          tabindex="0"
+          aria-label={p.label}
+          onclick={() => apply(p)}
+          onkeydown={(e) => onKey(e, p)}
+        >
+          <circle cx={m.x} cy={m.y} r="11" class="pmark" />
+          <text x={m.x} y={m.y + 0.5} class="pglyph">⚷</text>
+        </g>
+      {/each}
+    </svg>
+
+    {#if isOpen}
+      <div class="opened">
+        <div class="door"></div>
+        <h3>The lock opens.</h3>
+        <button class="continue" onclick={onComplete}>Step through →</button>
+      </div>
+    {/if}
+  </div>
+
+  <div class="tray">
+    <span class="tray-label">Skeleton keys</span>
+    {#each availableKeys as k (k.id)}
+      <button
+        class="key"
+        class:selected={selectedKey === k.id}
+        title={k.blurb}
+        onclick={() => (selectedKey = selectedKey === k.id ? null : k.id)}
+      >
+        <span class="key-glyph">⚷</span>
+        <span class="key-name">{k.name}</span>
+      </button>
+    {/each}
+  </div>
+
+  {#if toast}<div class="toast">{toast}</div>{/if}
+  {#if selectedKey && candidates.length === 0}
+    <div class="toast">This key fits nowhere new here — try another.</div>
+  {/if}
+</div>
+
+<style>
+  .screen {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: 0.75rem;
+    height: 100%;
+    color: #e8edf7;
+  }
+  header h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    letter-spacing: 0.02em;
+  }
+  header p {
+    margin: 0.15rem 0 0;
+    opacity: 0.7;
+    font-size: 0.9rem;
+    max-width: 46ch;
+  }
+  .stage {
+    position: relative;
+    display: grid;
+    place-items: center;
+    min-height: 0;
+  }
+  svg {
+    width: min(70vh, 100%);
+    height: auto;
+    aspect-ratio: 1;
+    transition: filter 0.6s ease;
+  }
+  svg.open {
+    filter: drop-shadow(0 0 24px rgba(120, 220, 170, 0.55));
+  }
+  .rim {
+    fill: url(#glass);
+    stroke: #4a608f;
+    stroke-width: 1.5;
+  }
+  .seg {
+    stroke: #6f86b8;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+  }
+  .seg.radius {
+    stroke-dasharray: 5 4;
+    opacity: 0.85;
+  }
+  .vertex {
+    fill: #cdd8f0;
+  }
+  .plabel {
+    fill: #aab6d4;
+    font-size: 11px;
+    text-anchor: middle;
+    dominant-baseline: middle;
+    font-family: ui-sans-serif, system-ui, sans-serif;
+  }
+  .angle {
+    fill: rgba(150, 170, 210, 0.1);
+    stroke: rgba(150, 170, 210, 0.4);
+    stroke-width: 1;
+    transition: fill 0.3s, stroke 0.3s;
+  }
+  .angle.given {
+    fill: rgba(240, 196, 90, 0.22);
+    stroke: #f0c45a;
+  }
+  .angle.target {
+    fill: rgba(120, 200, 255, 0.08);
+    stroke: #6db6ff;
+    stroke-dasharray: 4 3;
+  }
+  .angle.solved {
+    fill: rgba(110, 225, 165, 0.3);
+    stroke: #6ee1a5;
+    stroke-width: 1.6;
+  }
+  .angle.highlight {
+    fill: rgba(255, 230, 150, 0.35);
+    stroke: #ffe07a;
+    stroke-width: 2;
+    animation: pulse 1.1s ease-in-out infinite;
+  }
+  .angle.flash {
+    fill: rgba(160, 255, 200, 0.7);
+    stroke: #b6ffd6;
+    stroke-width: 2.4;
+  }
+  @keyframes pulse {
+    50% {
+      stroke-opacity: 0.45;
+    }
+  }
+  .qmark {
+    fill: #6db6ff;
+    font-size: 13px;
+    font-weight: 700;
+    text-anchor: middle;
+    dominant-baseline: middle;
+  }
+  .placement {
+    cursor: pointer;
+  }
+  .pmark {
+    fill: rgba(255, 224, 122, 0.18);
+    stroke: #ffe07a;
+    stroke-width: 1.6;
+    animation: pulse 1.1s ease-in-out infinite;
+  }
+  .placement:hover .pmark {
+    fill: rgba(255, 224, 122, 0.4);
+  }
+  .pglyph {
+    fill: #ffe07a;
+    font-size: 12px;
+    text-anchor: middle;
+    dominant-baseline: middle;
+    pointer-events: none;
+  }
+  .tray {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+  }
+  .tray-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.5;
+    margin-right: 0.25rem;
+  }
+  .key {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.7rem;
+    border-radius: 10px;
+    border: 1px solid #3a4a73;
+    background: #18233d;
+    color: #dce4f5;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.15s;
+  }
+  .key:hover {
+    border-color: #ffe07a;
+  }
+  .key.selected {
+    background: #2b3a60;
+    border-color: #ffe07a;
+    box-shadow: 0 0 0 2px rgba(255, 224, 122, 0.25);
+  }
+  .key-glyph {
+    color: #ffe07a;
+  }
+  .toast {
+    position: absolute;
+    bottom: 5.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #10182b;
+    border: 1px solid #3a4a73;
+    padding: 0.5rem 0.9rem;
+    border-radius: 10px;
+    font-size: 0.85rem;
+  }
+  .opened {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 0.8rem;
+    background: rgba(8, 12, 22, 0.72);
+    backdrop-filter: blur(2px);
+    border-radius: 16px;
+    animation: fade 0.5s ease;
+  }
+  .door {
+    width: 90px;
+    height: 130px;
+    border-radius: 45px 45px 6px 6px;
+    background: linear-gradient(180deg, #ffe9a8, #ffd166);
+    box-shadow: 0 0 40px rgba(255, 220, 120, 0.7);
+    animation: swing 0.9s ease;
+    transform-origin: left center;
+  }
+  .opened h3 {
+    margin: 0;
+  }
+  .continue {
+    padding: 0.6rem 1.1rem;
+    border-radius: 10px;
+    border: none;
+    background: #ffe07a;
+    color: #1a1303;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes swing {
+    from {
+      transform: perspective(400px) rotateY(0);
+    }
+    to {
+      transform: perspective(400px) rotateY(-55deg);
+    }
+  }
+</style>
