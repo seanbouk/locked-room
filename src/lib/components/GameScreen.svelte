@@ -51,11 +51,10 @@
     setTimeout(() => onComplete(), HB * 4 + 650);
   }
 
-  // The inner content of a node sinks straight back into its hole (scale about
-  // the node's own centre); the outer bevel rim stays put. SVG transforms about
-  // a point: translate(c) scale(k) translate(-c).
-  const innerXf = (vx: number, vy: number, id: string) =>
-    nodeBack(id) ? `translate(${vx} ${vy}) scale(0.55) translate(${-vx} ${-vy})` : '';
+  // A set-back node's inner content shrinks toward the circle centre (the
+  // vanishing point) — scale about the user origin (0,0) does both at once.
+  // Just a touch: 90%. The outer bevel rim stays put.
+  const innerXf = (id: string) => (nodeBack(id) ? 'scale(0.9)' : 'scale(1)');
   // The whole lock scales about the user origin (0,0) = circle centre, and rotates.
   const lockXf = $derived(
     phase === 'rotate' || phase === 'flash'
@@ -63,6 +62,26 @@
       : phase === 'circleBack'
         ? 'scale(0.6)'
         : 'scale(1)',
+  );
+
+  // God rays: a cone from the circle centre out through each open (set-back)
+  // hole, widening to the board edge. Radiating from a light behind the centre.
+  const RAY_L = 340;
+  const rayCones = $derived(
+    drawn.angles
+      .filter((a) => nodeBack(a.id) && Math.hypot(a.vx, a.vy) > 6)
+      .map((a) => {
+        const d = Math.hypot(a.vx, a.vy);
+        const px = -a.vy / d;
+        const py = a.vx / d; // unit perpendicular
+        const reach = (x: number, y: number) => {
+          const s = RAY_L / Math.hypot(x, y);
+          return `${(x * s).toFixed(1)},${(y * s).toFixed(1)}`;
+        };
+        const e1 = reach(a.vx + PIN_R * px, a.vy + PIN_R * py);
+        const e2 = reach(a.vx - PIN_R * px, a.vy - PIN_R * py);
+        return `0,0 ${e1} ${e2}`;
+      }),
   );
 
   let svgEl: SVGSVGElement;
@@ -395,6 +414,14 @@
               <feFuncB type="linear" slope="0.62" intercept="0.19" />
             </feComponentTransfer>
           </filter>
+          <!-- god-ray cone: dark near the centre (behind the lock face), bright
+               just past the hole, fading to the edge -->
+          <radialGradient id="rayGrad" cx="0" cy="0" r="340" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#fff7e6" stop-opacity="0" />
+            <stop offset="26%" stop-color="#fff7e6" stop-opacity="0" />
+            <stop offset="33%" stop-color="#fff7e6" stop-opacity="0.55" />
+            <stop offset="100%" stop-color="#fff7e6" stop-opacity="0" />
+          </radialGradient>
           <clipPath id="discClip">
             <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} />
           </clipPath>
@@ -438,7 +465,7 @@
 
             <!-- inner content: the floor + brass + its own bevel. Sinks into the
                  hole when the node is set back; the rim (below) stays put. -->
-            <g class="node-inner" transform={innerXf(a.vx, a.vy, a.id)}>
+            <g class="node-inner" transform={innerXf(a.id)}>
               {#if st === 'given'}
                 <circle cx={a.vx} cy={a.vy} r={PIN_R} class="pin-disc" />
               {:else}
@@ -493,6 +520,14 @@
           <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="cut rim" fill="none" />
         </g>
         <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="kerf rim" fill="none" />
+
+        <!-- god rays through the open (set-back) holes, from the centre; inside
+             the lock group so they scale/rotate with it and stay aligned -->
+        <g class="rays">
+          {#each rayCones as pts (pts)}
+            <polygon points={pts} fill="url(#rayGrad)" />
+          {/each}
+        </g>
         </g>
         <!-- /lock -->
 
@@ -898,11 +933,34 @@
   .pin-floor {
     fill: url(#disc); /* same steel as the lock face, so it sits flush */
   }
+  /* real easeOutBounce (a ball settling) — cubic-bezier can't multi-bounce, so
+     use the linear() easing with the Penner bounce curve */
+  .node-inner,
+  .lock {
+    --bounce: linear(
+      0, 0.012, 0.069, 0.169, 0.302, 0.474, 0.681 35%, 1 36.4%, 0.892, 0.819,
+      0.772, 0.75 54.5%, 0.764, 0.812, 0.892, 1 72.7%, 0.966, 0.939, 0.939 81.8%,
+      0.966, 1 90.9%, 0.989, 0.984, 0.997, 1
+    );
+  }
   .node-inner {
-    transition: transform 0.55s cubic-bezier(0.32, 1.55, 0.5, 1);
+    transition: transform 0.6s var(--bounce);
   }
   .lock {
-    transition: transform 0.6s cubic-bezier(0.32, 1.5, 0.5, 1);
+    transition: transform 0.66s var(--bounce);
+  }
+
+  /* god rays: additive light, fading in as the lock opens */
+  .rays {
+    mix-blend-mode: screen;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.6s ease;
+  }
+  .screen.circleBack .rays,
+  .screen.rotate .rays,
+  .screen.flash .rays {
+    opacity: 1;
   }
 
   .whiteout {
