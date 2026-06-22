@@ -26,6 +26,22 @@
   const targetSet = new Set(level.puzzle.targets);
   const angleMap = new Map(drawn.angles.map((a) => [a.id, a]));
 
+  // DEBUG: a distinct colour wash per plate piece, to tell faces apart while
+  // tidying the sliced render. Toggle with the "d" key. Golden-angle hue spread
+  // so adjacent pieces never share a colour.
+  let debugTint = $state(false);
+  const tintColor = (i: number) => `hsl(${Math.round((i * 137.508) % 360)} 80% 55%)`;
+  // Continue the debug palette after the disc faces, so every pin wedge also
+  // gets its own distinct colour. pinBase[ai] = first colour index for angle ai.
+  const pinBase: number[] = (() => {
+    let acc = drawn.faces.length;
+    return drawn.angles.map((a) => {
+      const base = acc;
+      acc += a.pieces.length;
+      return base;
+    });
+  })();
+
   let solved = $state(new Set<string>(lock.solvedIds()));
   let flash = $state(new Set<string>());
   let appliedLabels = $state(new Set<string>());
@@ -51,10 +67,13 @@
     setTimeout(() => onComplete(), HB * 4 + 650);
   }
 
-  // A set-back node's inner content shrinks toward the circle centre (the
-  // vanishing point) — scale about the user origin (0,0) does both at once.
-  // Just a touch: 90%. The outer bevel rim stays put.
-  const innerXf = (id: string) => (nodeBack(id) ? 'scale(0.9)' : 'scale(1)');
+  // A set-back pin recedes toward the VANISHING POINT (the puzzle centre = the
+  // user origin), so it both shrinks and drifts toward centre — reading as
+  // "moved back" in perspective, not just "shrunk in place". scale() about the
+  // origin does exactly this. The socket it leaves (node-cut/shade) stays put.
+  const PIN_BACK = 0.91;
+  const pinXf = (a: { id: string; vx: number; vy: number }) =>
+    `scale(${nodeBack(a.id) ? PIN_BACK : 1})`;
   // The whole lock scales about the user origin (0,0) = circle centre, and rotates.
   const lockXf = $derived(
     phase === 'rotate' || phase === 'flash'
@@ -78,9 +97,16 @@
           const s = RAY_L / Math.hypot(x, y);
           return `${(x * s).toFixed(1)},${(y * s).toFixed(1)}`;
         };
-        const e1 = reach(a.vx + PIN_R * px, a.vy + PIN_R * py);
-        const e2 = reach(a.vx - PIN_R * px, a.vy - PIN_R * py);
-        return `0,0 ${e1} ${e2}`;
+        // The hole is the light aperture: the beam STARTS at the hole's near rim
+        // and widens outward (away from the centre). Emanating the cone from the
+        // disc centre instead would narrow it through the hole and slice a bright
+        // edge across the opening — so build a trapezoid from the rim, not a
+        // triangle from the origin.
+        const n1 = `${(a.vx + PIN_R * px).toFixed(1)},${(a.vy + PIN_R * py).toFixed(1)}`;
+        const n2 = `${(a.vx - PIN_R * px).toFixed(1)},${(a.vy - PIN_R * py).toFixed(1)}`;
+        const f1 = reach(a.vx + PIN_R * px, a.vy + PIN_R * py);
+        const f2 = reach(a.vx - PIN_R * px, a.vy - PIN_R * py);
+        return `${n1} ${f1} ${f2} ${n2}`;
       }),
   );
   // nodes sitting on the centre can't cast a directional cone — they glow out.
@@ -328,6 +354,7 @@
 
   function onKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') endChain();
+    if (e.key === 'd') debugTint = !debugTint;
   }
 
   const chainName = $derived(chain ? ALL_KEYS[chain.keyId].name : '');
@@ -374,6 +401,34 @@
             <stop offset="62%" stop-color="#949ca8" />
             <stop offset="100%" stop-color="#767d89" />
           </radialGradient>
+          <!-- steel fill for a sliced plate piece (per-piece bounding box, so
+               each piece carries its own top-left-lit sheen) -->
+          <radialGradient id="plate" cx="38%" cy="30%" r="85%">
+            <stop offset="0%" stop-color="#c2c9d3" />
+            <stop offset="55%" stop-color="#9aa2ad" />
+            <stop offset="100%" stop-color="#6f7681" />
+          </radialGradient>
+          <!-- per-piece bevel: blur the shape's own alpha into a height map and
+               light it from the top-left (azimuth 225). Diffuse gives the matte
+               chamfer, specular the glint; both are composited back INSIDE the
+               shape and merged over the fill. No mix-blend-mode anywhere, so it
+               can't fall into the overlay-isolation grey-cover trap. -->
+          <filter id="bevel" x="-25%" y="-25%" width="150%" height="150%" color-interpolation-filters="sRGB">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="1.1" result="b" />
+            <!-- diffuse shading as a near-white MULTIPLIER: flat areas stay close
+                 to the piece's own colour, the bevel walls darken/brighten. This
+                 keeps each piece's hue (brass stays brass) instead of greying it. -->
+            <feDiffuseLighting in="b" surfaceScale="3" diffuseConstant="1.15" lighting-color="#fff" result="df">
+              <feDistantLight azimuth="225" elevation="55" />
+            </feDiffuseLighting>
+            <feComposite in="df" in2="SourceGraphic" operator="arithmetic" k1="1" k2="0" k3="0" k4="0" result="lit" />
+            <!-- specular glint on the lit wall, clipped to the shape, added on top -->
+            <feSpecularLighting in="b" surfaceScale="3" specularConstant="0.8" specularExponent="16" lighting-color="#fff" result="sp">
+              <feDistantLight azimuth="225" elevation="55" />
+            </feSpecularLighting>
+            <feComposite in="sp" in2="SourceAlpha" operator="in" result="spc" />
+            <feComposite in="lit" in2="spc" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" />
+          </filter>
           <linearGradient id="brass" x1="0" y1="0" x2="0.3" y2="1">
             <stop offset="0%" stop-color="#e9c668" />
             <stop offset="50%" stop-color="#c2922f" />
@@ -460,103 +515,100 @@
               <circle cx={a.vx} cy={a.vy} r={PIN_R} fill="black" />
             {/each}
           </mask>
+          <!-- a hole cut in the doors matching the lock's full outline (disc +
+               the pins that stick out past the rim), so when the lock recedes a
+               void gap opens up around it -->
+          <mask id="doorHole" maskUnits="userSpaceOnUse" x="-125" y="-175" width="250" height="550">
+            <rect x="-125" y="-175" width="250" height="550" fill="white" />
+            <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} fill="black" />
+            {#each drawn.angles as a (a.id)}
+              <circle cx={a.vx} cy={a.vy} r={PIN_R} fill="black" />
+            {/each}
+          </mask>
+          <!-- holes bored in the lock face at every pin, so the pins (rendered
+               behind the face) show through and the face occludes them as they
+               recede -->
+          <mask id="plateHoles" maskUnits="userSpaceOnUse" x="-125" y="-175" width="250" height="550">
+            <rect x="-125" y="-175" width="250" height="550" fill="white" />
+            {#each drawn.angles as a (a.id)}
+              <circle cx={a.vx} cy={a.vy} r={PIN_R} fill="black" />
+            {/each}
+          </mask>
         </defs>
 
-        <!-- the two doors (brushed steel) -->
-        <rect x="-125" y="-175" width="250" height="550" fill="url(#steel)" />
-        <rect x="-125" y="-175" width="250" height="550" fill="#d2d8df" filter="url(#brushed)" opacity="0.16" />
+        <!-- the dark void behind the doors, revealed through the lock-shaped
+             hole when the lock recedes into it -->
+        <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r + PIN_R + 4} class="door-void" />
 
-        <!-- seam between the doors; the lock disc covers the middle. Bevelled
-             with explicit offset lips (the relief filter can't resolve a bevel
-             on a full-height hairline). Vertical, lit top-left: bright lip left,
-             shadow lip right, black kerf down the centre. -->
-        <line x1="0" y1="-175" x2="0" y2="375" class="seam-lip shadow" transform="translate(-0.95 0)" />
-        <line x1="0" y1="-175" x2="0" y2="375" class="seam-lip light" transform="translate(0.95 0)" />
-        <line x1="0" y1="-175" x2="0" y2="375" class="kerf seam" />
+        <!-- the two doors (brushed steel) + seam, with a hole cut to the lock's
+             outline so the lock seats into them and a gap opens when it recedes -->
+        <g mask="url(#doorHole)">
+          <rect x="-125" y="-175" width="250" height="550" fill="url(#steel)" />
+          <rect x="-125" y="-175" width="250" height="550" fill="#d2d8df" filter="url(#brushed)" opacity="0.16" />
+          <!-- seam between the doors. Vertical, lit top-left: bright lip left,
+               shadow lip right, black kerf down the centre. -->
+          <line x1="0" y1="-175" x2="0" y2="375" class="seam-lip shadow" transform="translate(-0.95 0)" />
+          <line x1="0" y1="-175" x2="0" y2="375" class="seam-lip light" transform="translate(0.95 0)" />
+          <line x1="0" y1="-175" x2="0" y2="375" class="kerf seam" />
+        </g>
 
         <!-- everything that recedes / rotates as the lock opens -->
         <g class="lock" transform={lockXf}>
-        <!-- the lock disc -->
-        <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} fill="url(#disc)" />
-        <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} fill="#d2d8df" filter="url(#brushed)" opacity="0.13" clip-path="url(#discClip)" />
-        <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} fill="url(#discShade)" mask="url(#shadeMask)" />
+        <!-- the dark backplate: shows through every kerf gap and bored pin hole -->
+        <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="backplate" />
 
-        <!-- brass workings, one group per node so each can "set back" when
-             solved: given = full brass disc; needed = steel ring + brass arc;
-             solved adds a brass slice -->
-        {#each drawn.angles as a (a.id)}
+        <!-- PINS, rendered BEHIND the lock face so a receding pin is occluded by
+             the face — it reads as dropped back, not just shrunk. Each pin is
+             sliced into wedge pieces by every line through its vertex; it recedes
+             toward the puzzle centre (vanishing point) when set back. -->
+        {#each drawn.angles as a, ai (a.id)}
           {@const st = angleState(a.id)}
-          <g class="node">
-            <!-- the void + floor only exist once the node is set back, so an
-                 unsolved node sits flush on the lock face (no raised button) -->
-            {#if nodeBack(a.id)}
-              <circle cx={a.vx} cy={a.vy} r={PIN_R} class="void" />
-            {/if}
-
-            <!-- inner content: the floor + brass + its own bevel. Sinks into the
-                 hole when the node is set back; the rim (below) stays put. -->
-            <g class="node-inner" transform={innerXf(a.id)}>
-              {#if st === 'given'}
-                <circle cx={a.vx} cy={a.vy} r={PIN_R} class="pin-disc" />
-              {:else}
-                {#if nodeBack(a.id)}
-                  <circle cx={a.vx} cy={a.vy} r={PIN_R} class="pin-floor" />
-                {/if}
-                {#if st === 'solved' || st === 'flash'}
-                  <path d={a.sector} class="pin-slice {st}" />
-                {/if}
-                <path d={a.arc} class="pin-arc {st}" />
-              {/if}
-              <g class="relief" filter="url(#relief)">
-                {#if st === 'given'}
-                  <circle cx={a.vx} cy={a.vy} r={PIN_R} class="brass-edge" fill="none" />
-                {:else}
-                  <path d={a.arc} class="brass-edge" fill="none" />
-                  {#if st === 'solved' || st === 'flash'}
-                    <path d={a.sector} class="brass-edge" fill="none" />
-                  {/if}
-                {/if}
-              </g>
-            </g>
-
-            <!-- fixed outer bevel: the rim of the hole. Brass for a given, an
-                 engraved steel ring otherwise. -->
-            {#if st === 'given'}
-              <g class="relief" filter="url(#relief)">
-                <circle cx={a.vx} cy={a.vy} r={PIN_R} class="brass-edge" fill="none" />
-              </g>
-            {:else}
-              <g class="relief" filter="url(#relief)">
-                <circle cx={a.vx} cy={a.vy} r={PIN_R} class="cut" fill="none" />
-              </g>
-              <circle cx={a.vx} cy={a.vy} r={PIN_R} class="kerf" fill="none" />
+          {@const back = nodeBack(a.id)}
+          <g class="pin-face" class:back transform={pinXf(a)}>
+            {#each a.pieces as pc, j (j)}
+              {@const brass =
+                st === 'given' ||
+                ((st === 'solved' || st === 'flash' || st === 'pending') && pc.marked)}
+              <path
+                d={pc.d}
+                class="pin-piece"
+                class:brass={!debugTint && brass}
+                class:lit={!debugTint && (st === 'solved' || st === 'flash') && pc.marked}
+                style:fill={debugTint ? tintColor(pinBase[ai] + j) : null}
+                filter="url(#bevel)"
+              />
+            {/each}
+            {#if !debugTint && (st === 'unknown' || st === 'pending')}
+              <path d={a.arc} class="pin-arc {st}" />
             {/if}
           </g>
         {/each}
 
-        <!-- chords + outer circle, engraved -->
-        <g class="relief" clip-path="url(#discClip)" filter="url(#relief)">
-          {#each drawn.segments as s (s.id)}
-            <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} class="cut {s.kind}" />
+        <!-- the lock face: the sliced plate, with a hole bored at every pin so
+             the pin behind shows through (and the dark backplate shows in the
+             kerf gaps). Everything here is cut by the pin holes, so nothing draws
+             across a pin — including the rim edge and the line glow. -->
+        <g mask="url(#plateHoles)">
+          {#each drawn.faces as f (f.id)}
+            <path d={f.inset} class="plate-piece" filter="url(#bevel)" />
           {/each}
+          {#if debugTint}
+            {#each drawn.faces as f, i (f.id)}
+              <path d={f.inset} fill={tintColor(i)} class="debug-tint" />
+            {/each}
+          {/if}
+          <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} fill="#d2d8df" filter="url(#brushed)" opacity="0.10" clip-path="url(#discClip)" />
+          <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="rim-edge" fill="none" />
+          <g class="line-glow" filter="url(#lineGlow)">
+            {#each drawn.segments as s (s.id)}
+              <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} class="glow-line" />
+            {/each}
+            <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="glow-line" fill="none" />
+          </g>
         </g>
-        <g clip-path="url(#discClip)">
-          {#each drawn.segments as s (s.id)}
-            <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} class="kerf {s.kind}" />
-          {/each}
-        </g>
-        <g class="relief" filter="url(#relief)">
-          <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="cut rim" fill="none" />
-        </g>
-        <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="kerf rim" fill="none" />
 
-        <!-- a faint glow off every engraved line once the lock is opening -->
-        <g class="line-glow" filter="url(#lineGlow)">
-          {#each drawn.segments as s (s.id)}
-            <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} class="glow-line" />
-          {/each}
-          <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="glow-line" fill="none" />
-        </g>
+        <!-- inner vignette over the face (masked off the pins) -->
+        <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} fill="url(#discShade)" mask="url(#shadeMask)" />
 
         <!-- god rays through the open (set-back) holes, from the centre; inside
              the lock group so they scale/rotate with it and stay aligned. Centre
@@ -749,6 +801,28 @@
     pointer-events: auto;
   }
 
+  /* sliced-plate pieces: the dark void behind the gaps, the steel tiles, and
+     the crisp outer rim of the disc */
+  .backplate {
+    fill: #0a0c10;
+  }
+  /* the void behind the doors, seen through the lock-shaped hole on recede */
+  .door-void {
+    fill: #06070a;
+  }
+  .plate-piece {
+    fill: url(#plate);
+  }
+  /* DEBUG: translucent colour wash over each piece (steel/bevel stays visible) */
+  .debug-tint {
+    opacity: 0.45;
+    pointer-events: none;
+  }
+  .rim-edge {
+    stroke: #14171d;
+    stroke-width: 1.2;
+  }
+
   /* the raw groove stroke; the #relief filter lights it into a real bevel,
      and overlay-blends the grey relief onto the steel so it sits in the surface */
   .relief {
@@ -796,10 +870,16 @@
     pointer-events: none;
   }
 
-  /* brass workings */
-  /* given: a full brass disc (all angles at the point are known) */
-  .pin-disc {
+  /* a pin's wedge piece: a real beveled slice. Steel by default; brass for the
+     marked angle (given / solved), brighter brass when freshly solved. */
+  .pin-piece {
+    fill: url(#plate);
+  }
+  .pin-piece.brass {
     fill: url(#brass);
+  }
+  .pin-piece.lit {
+    fill: url(#brassLit);
   }
   /* needed/working angle: a brass arc on the angle portion of the steel ring */
   .pin-arc {
@@ -965,18 +1045,12 @@
     border-radius: 10px;
     font-size: 0.85rem;
   }
-  /* ── level transition: a node's inner content sinks back into a black hole ──
-     Transforms are SVG attributes (about the circle centre / node centre); these
-     transitions just smooth them, with a bouncy back-out for a mechanical clunk. */
-  .void {
-    fill: #07080b;
-  }
-  .pin-floor {
-    fill: url(#disc); /* same steel as the lock face, so it sits flush */
-  }
+  /* ── level transition: a pin sinks straight back into its bored hole ──
+     Transforms are SVG attributes (scale about the pin's / circle's own centre);
+     these transitions just smooth them, with a bouncy back-out for a clunk. */
   /* real easeOutBounce (a ball settling) — cubic-bezier can't multi-bounce, so
      use the linear() easing with the Penner bounce curve */
-  .node-inner,
+  .pin-face,
   .lock {
     --bounce: linear(
       0, 0.012, 0.069, 0.169, 0.302, 0.474, 0.681 35%, 1 36.4%, 0.892, 0.819,
@@ -984,8 +1058,11 @@
       0.966, 1 90.9%, 0.989, 0.984, 0.997, 1
     );
   }
-  .node-inner {
-    transition: transform 0.6s var(--bounce);
+  .pin-face {
+    transition: transform 0.6s var(--bounce), opacity 0.5s ease;
+  }
+  .pin-face.back {
+    opacity: 0.9; /* a touch dimmer at the back of the hole */
   }
   .lock {
     transition: transform 0.66s var(--bounce);
