@@ -51,6 +51,17 @@
     setTimeout(() => onComplete(), HB * 4 + 650);
   }
 
+  // SVG transforms are about the user origin (0,0) = the circle centre, so a
+  // plain scale() recedes everything toward the middle (no origin math needed).
+  const nodeXf = (id: string) => (nodeBack(id) ? 'scale(0.82)' : 'scale(1)');
+  const lockXf = $derived(
+    phase === 'rotate' || phase === 'flash'
+      ? 'scale(0.6) rotate(90)'
+      : phase === 'circleBack'
+        ? 'scale(0.6)'
+        : 'scale(1)',
+  );
+
   let svgEl: SVGSVGElement;
 
   // Dragging a key off the tray.
@@ -407,7 +418,7 @@
         <line x1="0" y1="-175" x2="0" y2="375" class="kerf seam" />
 
         <!-- everything that recedes / rotates as the lock opens -->
-        <g class="lock">
+        <g class="lock" transform={lockXf}>
         <!-- the lock disc -->
         <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} fill="url(#disc)" />
         <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} fill="#d2d8df" filter="url(#brushed)" opacity="0.13" clip-path="url(#discClip)" />
@@ -418,7 +429,7 @@
              solved adds a brass slice -->
         {#each drawn.angles as a (a.id)}
           {@const st = angleState(a.id)}
-          <g class="node" class:back={nodeBack(a.id)}>
+          <g class="node" transform={nodeXf(a.id)}>
             {#if st === 'given'}
               <circle cx={a.vx} cy={a.vy} r={PIN_R} class="pin-disc" />
               <g class="relief" filter="url(#relief)">
@@ -857,27 +868,14 @@
     border-radius: 10px;
     font-size: 0.85rem;
   }
-  /* ── level transition: nodes/lock "set back" toward the centre, behind ── */
+  /* ── level transition: nodes/lock "set back" toward the centre ──
+     The transform is set as an SVG attribute (scale about the user origin =
+     circle centre); these transitions just smooth the change. */
   .node {
-    transform-box: view-box;
-    transform-origin: 125px 175px; /* the circle centre in viewBox coords */
-    transition: transform 0.6s cubic-bezier(0.5, 0, 0.2, 1), opacity 0.6s ease;
-  }
-  .node.back {
-    transform: scale(0.74);
-    opacity: 0.85;
+    transition: transform 0.6s cubic-bezier(0.5, 0, 0.2, 1);
   }
   .lock {
-    transform-box: view-box;
-    transform-origin: 125px 175px;
     transition: transform 0.62s cubic-bezier(0.5, 0, 0.2, 1);
-  }
-  .screen.circleBack .lock {
-    transform: scale(0.58);
-  }
-  .screen.rotate .lock,
-  .screen.flash .lock {
-    transform: scale(0.58) rotate(90deg);
   }
 
   .whiteout {
