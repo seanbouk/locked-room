@@ -431,11 +431,21 @@
             <stop offset="0%" stop-color="#fff7e6" stop-opacity="0.7" />
             <stop offset="100%" stop-color="#fff7e6" stop-opacity="0" />
           </radialGradient>
-          <!-- smoky (perlin) noise that warps the rays like drifting dust -->
-          <filter id="raynoise" x="-30%" y="-30%" width="160%" height="160%">
-            <feTurbulence type="fractalNoise" baseFrequency="0.016 0.022" numOctaves="2" seed="4" result="n" />
-            <feDisplacementMap in="SourceGraphic" in2="n" scale="18" xChannelSelector="R" yChannelSelector="G" />
+          <!-- perlin noise as a luminance mask: it MULTIPLIES the rays' alpha in
+               patches (smoke), leaving the cone edges hard -->
+          <filter id="rayNoiseTex" x="-20%" y="-20%" width="140%" height="140%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.02 0.028" numOctaves="3" seed="6" result="n" />
+            <feColorMatrix in="n" type="saturate" values="0" result="g" />
+            <feComponentTransfer in="g">
+              <feFuncR type="linear" slope="0.75" intercept="0.38" />
+              <feFuncG type="linear" slope="0.75" intercept="0.38" />
+              <feFuncB type="linear" slope="0.75" intercept="0.38" />
+              <feFuncA type="linear" slope="0" intercept="1" />
+            </feComponentTransfer>
           </filter>
+          <mask id="rayNoiseMask" maskUnits="userSpaceOnUse" x="-220" y="-320" width="440" height="640">
+            <rect x="-220" y="-320" width="440" height="640" filter="url(#rayNoiseTex)" />
+          </mask>
           <filter id="lineGlow" x="-20%" y="-20%" width="140%" height="140%">
             <feGaussianBlur stdDeviation="1.4" />
           </filter>
@@ -450,12 +460,15 @@
               <circle cx={a.vx} cy={a.vy} r={PIN_R} fill="black" />
             {/each}
           </mask>
-          <!-- punch the node holes out of the engraved lines, so a line stops at
-               a hole's rim instead of floating across the open recess -->
+          <!-- punch holes out of the engraved lines only for OPEN (set-back)
+               nodes, so a line stops at the rim instead of floating across the
+               void. Unsolved nodes are flush, so lines pass through them. -->
           <mask id="faceHoles">
             <rect x="-125" y="-175" width="250" height="550" fill="white" />
             {#each drawn.angles as a (a.id)}
-              <circle cx={a.vx} cy={a.vy} r={PIN_R - 0.5} fill="black" />
+              {#if nodeBack(a.id)}
+                <circle cx={a.vx} cy={a.vy} r={PIN_R - 0.5} fill="black" />
+              {/if}
             {/each}
           </mask>
         </defs>
@@ -485,8 +498,11 @@
         {#each drawn.angles as a (a.id)}
           {@const st = angleState(a.id)}
           <g class="node">
-            <!-- the void behind the node; revealed as the inner content sinks back -->
-            <circle cx={a.vx} cy={a.vy} r={PIN_R} class="void" />
+            <!-- the void + floor only exist once the node is set back, so an
+                 unsolved node sits flush on the lock face (no raised button) -->
+            {#if nodeBack(a.id)}
+              <circle cx={a.vx} cy={a.vy} r={PIN_R} class="void" />
+            {/if}
 
             <!-- inner content: the floor + brass + its own bevel. Sinks into the
                  hole when the node is set back; the rim (below) stays put. -->
@@ -494,7 +510,9 @@
               {#if st === 'given'}
                 <circle cx={a.vx} cy={a.vy} r={PIN_R} class="pin-disc" />
               {:else}
-                <circle cx={a.vx} cy={a.vy} r={PIN_R} class="pin-floor" />
+                {#if nodeBack(a.id)}
+                  <circle cx={a.vx} cy={a.vy} r={PIN_R} class="pin-floor" />
+                {/if}
                 {#if st === 'solved' || st === 'flash'}
                   <path d={a.sector} class="pin-slice {st}" />
                 {/if}
@@ -557,7 +575,7 @@
         <!-- god rays through the open (set-back) holes, from the centre; inside
              the lock group so they scale/rotate with it and stay aligned. Centre
              nodes glow out in all directions. Smoky noise warps them. -->
-        <g class="rays" filter="url(#raynoise)">
+        <g class="rays" mask="url(#rayNoiseMask)">
           {#each rayCones as pts (pts)}
             <polygon points={pts} fill="url(#rayGrad)" />
           {/each}
