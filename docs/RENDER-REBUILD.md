@@ -22,6 +22,23 @@ all the same root cause:
 User's words: *"we'll always be chasing this effect otherwise."* Correct. Polish
 is about to get heavy, so we fix the foundation first.
 
+## Confirmed design decisions (2026-06-22, signed off)
+
+1. **FULLY sliced.** Every kerf is an actual slice/gap, like real life. Each
+   piece is just a brass-or-steel SHAPE with a bevel round its edge and **no lines
+   drawn on it** — all the "lines" are the gaps between pieces. So the disc is cut
+   into all its arrangement faces (wedges, lenses), each a real beveled piece.
+2. **Gap size** = roughly the current kerf width — aim to match what's there now.
+3. **Per-piece bevel, lit top-left**, via thin inset light/shadow lips (cheap, no
+   blend-mode isolation traps). **IMPORTANT:** the bevel light must **track the
+   world light source as pieces rotate** — i.e. during the 90° transition rotate,
+   the lit edge stays top-left in WORLD space and does NOT rotate with the piece.
+   So the lip light/dark can't be statically baked onto a rotating piece; either
+   recompute the lit edge from the piece's current rotation, or use a lighting
+   filter in a non-rotating frame. Plan for relightable bevels from the start.
+4. **Door swing** toward the viewer, post-rotate — but build/verify the sliced
+   board + recede + rotate FIRST; the swing comes after the rest works.
+
 ## DO NOT TOUCH — engine, levels, interaction (all work, 13 tests green)
 
 - `src/lib/engine/`: `fraction.ts` (exact BigInt rationals), `linear-system.ts`
