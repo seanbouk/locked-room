@@ -61,7 +61,7 @@
       ? 'scale(0.6) rotate(90)'
       : phase === 'circleBack'
         ? 'scale(0.6)'
-        : 'scale(1)',
+        : '', // no transform during play, so it doesn't isolate the blend modes
   );
 
   // God rays: a cone from the circle centre out through each open (set-back)
@@ -369,7 +369,7 @@
             <stop offset="52%" stop-color="#8d96a1" />
             <stop offset="100%" stop-color="#6c727d" />
           </linearGradient>
-          <radialGradient id="disc" cx="-24" cy="-36" r="162" gradientUnits="userSpaceOnUse">
+          <radialGradient id="disc" cx="38%" cy="32%" r="82%">
             <stop offset="0%" stop-color="#b7bec8" />
             <stop offset="62%" stop-color="#949ca8" />
             <stop offset="100%" stop-color="#767d89" />
@@ -460,17 +460,6 @@
               <circle cx={a.vx} cy={a.vy} r={PIN_R} fill="black" />
             {/each}
           </mask>
-          <!-- punch holes out of the engraved lines only for OPEN (set-back)
-               nodes, so a line stops at the rim instead of floating across the
-               void. Unsolved nodes are flush, so lines pass through them. -->
-          <mask id="faceHoles">
-            <rect x="-125" y="-175" width="250" height="550" fill="white" />
-            {#each drawn.angles as a (a.id)}
-              {#if nodeBack(a.id)}
-                <circle cx={a.vx} cy={a.vy} r={PIN_R - 0.5} fill="black" />
-              {/if}
-            {/each}
-          </mask>
         </defs>
 
         <!-- the two doors (brushed steel) -->
@@ -545,24 +534,21 @@
           </g>
         {/each}
 
-        <!-- chords + outer circle, engraved; masked so they stop at node holes
-             rather than crossing the open recesses -->
-        <g mask="url(#faceHoles)">
-          <g class="relief" clip-path="url(#discClip)" filter="url(#relief)">
-            {#each drawn.segments as s (s.id)}
-              <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} class="cut {s.kind}" />
-            {/each}
-          </g>
-          <g clip-path="url(#discClip)">
-            {#each drawn.segments as s (s.id)}
-              <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} class="kerf {s.kind}" />
-            {/each}
-          </g>
-          <g class="relief" filter="url(#relief)">
-            <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="cut rim" fill="none" />
-          </g>
-          <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="kerf rim" fill="none" />
+        <!-- chords + outer circle, engraved -->
+        <g class="relief" clip-path="url(#discClip)" filter="url(#relief)">
+          {#each drawn.segments as s (s.id)}
+            <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} class="cut {s.kind}" />
+          {/each}
         </g>
+        <g clip-path="url(#discClip)">
+          {#each drawn.segments as s (s.id)}
+            <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} class="kerf {s.kind}" />
+          {/each}
+        </g>
+        <g class="relief" filter="url(#relief)">
+          <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="cut rim" fill="none" />
+        </g>
+        <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="kerf rim" fill="none" />
 
         <!-- a faint glow off every engraved line once the lock is opening -->
         <g class="line-glow" filter="url(#lineGlow)">
