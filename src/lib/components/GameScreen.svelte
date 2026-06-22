@@ -51,9 +51,12 @@
     setTimeout(() => onComplete(), HB * 4 + 650);
   }
 
-  // SVG transforms are about the user origin (0,0) = the circle centre, so a
-  // plain scale() recedes everything toward the middle (no origin math needed).
-  const nodeXf = (id: string) => (nodeBack(id) ? 'scale(0.82)' : 'scale(1)');
+  // The inner content of a node sinks straight back into its hole (scale about
+  // the node's own centre); the outer bevel rim stays put. SVG transforms about
+  // a point: translate(c) scale(k) translate(-c).
+  const innerXf = (vx: number, vy: number, id: string) =>
+    nodeBack(id) ? `translate(${vx} ${vy}) scale(0.55) translate(${-vx} ${-vy})` : '';
+  // The whole lock scales about the user origin (0,0) = circle centre, and rotates.
   const lockXf = $derived(
     phase === 'rotate' || phase === 'flash'
       ? 'scale(0.6) rotate(90)'
@@ -343,7 +346,7 @@
             <stop offset="52%" stop-color="#8d96a1" />
             <stop offset="100%" stop-color="#6c727d" />
           </linearGradient>
-          <radialGradient id="disc" cx="38%" cy="32%" r="82%">
+          <radialGradient id="disc" cx="-24" cy="-36" r="162" gradientUnits="userSpaceOnUse">
             <stop offset="0%" stop-color="#b7bec8" />
             <stop offset="62%" stop-color="#949ca8" />
             <stop offset="100%" stop-color="#767d89" />
@@ -429,9 +432,37 @@
              solved adds a brass slice -->
         {#each drawn.angles as a (a.id)}
           {@const st = angleState(a.id)}
-          <g class="node" transform={nodeXf(a.id)}>
+          <g class="node">
+            <!-- the void behind the node; revealed as the inner content sinks back -->
+            <circle cx={a.vx} cy={a.vy} r={PIN_R} class="void" />
+
+            <!-- inner content: the floor + brass + its own bevel. Sinks into the
+                 hole when the node is set back; the rim (below) stays put. -->
+            <g class="node-inner" transform={innerXf(a.vx, a.vy, a.id)}>
+              {#if st === 'given'}
+                <circle cx={a.vx} cy={a.vy} r={PIN_R} class="pin-disc" />
+              {:else}
+                <circle cx={a.vx} cy={a.vy} r={PIN_R} class="pin-floor" />
+                {#if st === 'solved' || st === 'flash'}
+                  <path d={a.sector} class="pin-slice {st}" />
+                {/if}
+                <path d={a.arc} class="pin-arc {st}" />
+              {/if}
+              <g class="relief" filter="url(#relief)">
+                {#if st === 'given'}
+                  <circle cx={a.vx} cy={a.vy} r={PIN_R} class="brass-edge" fill="none" />
+                {:else}
+                  <path d={a.arc} class="brass-edge" fill="none" />
+                  {#if st === 'solved' || st === 'flash'}
+                    <path d={a.sector} class="brass-edge" fill="none" />
+                  {/if}
+                {/if}
+              </g>
+            </g>
+
+            <!-- fixed outer bevel: the rim of the hole. Brass for a given, an
+                 engraved steel ring otherwise. -->
             {#if st === 'given'}
-              <circle cx={a.vx} cy={a.vy} r={PIN_R} class="pin-disc" />
               <g class="relief" filter="url(#relief)">
                 <circle cx={a.vx} cy={a.vy} r={PIN_R} class="brass-edge" fill="none" />
               </g>
@@ -440,16 +471,6 @@
                 <circle cx={a.vx} cy={a.vy} r={PIN_R} class="cut" fill="none" />
               </g>
               <circle cx={a.vx} cy={a.vy} r={PIN_R} class="kerf" fill="none" />
-              {#if st === 'solved' || st === 'flash'}
-                <path d={a.sector} class="pin-slice {st}" />
-              {/if}
-              <path d={a.arc} class="pin-arc {st}" />
-              <g class="relief" filter="url(#relief)">
-                <path d={a.arc} class="brass-edge" fill="none" />
-                {#if st === 'solved' || st === 'flash'}
-                  <path d={a.sector} class="brass-edge" fill="none" />
-                {/if}
-              </g>
             {/if}
           </g>
         {/each}
@@ -868,14 +889,20 @@
     border-radius: 10px;
     font-size: 0.85rem;
   }
-  /* ── level transition: nodes/lock "set back" toward the centre ──
-     The transform is set as an SVG attribute (scale about the user origin =
-     circle centre); these transitions just smooth the change. */
-  .node {
-    transition: transform 0.6s cubic-bezier(0.5, 0, 0.2, 1);
+  /* ── level transition: a node's inner content sinks back into a black hole ──
+     Transforms are SVG attributes (about the circle centre / node centre); these
+     transitions just smooth them, with a bouncy back-out for a mechanical clunk. */
+  .void {
+    fill: #07080b;
+  }
+  .pin-floor {
+    fill: url(#disc); /* same steel as the lock face, so it sits flush */
+  }
+  .node-inner {
+    transition: transform 0.55s cubic-bezier(0.32, 1.55, 0.5, 1);
   }
   .lock {
-    transition: transform 0.62s cubic-bezier(0.5, 0, 0.2, 1);
+    transition: transform 0.6s cubic-bezier(0.32, 1.5, 0.5, 1);
   }
 
   .whiteout {
