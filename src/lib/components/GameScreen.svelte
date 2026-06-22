@@ -83,6 +83,10 @@
         return `0,0 ${e1} ${e2}`;
       }),
   );
+  // nodes sitting on the centre can't cast a directional cone — they glow out.
+  const centerGlows = $derived(
+    drawn.angles.filter((a) => nodeBack(a.id) && Math.hypot(a.vx, a.vy) <= 6),
+  );
 
   let svgEl: SVGSVGElement;
 
@@ -422,6 +426,19 @@
             <stop offset="33%" stop-color="#fff7e6" stop-opacity="0.55" />
             <stop offset="100%" stop-color="#fff7e6" stop-opacity="0" />
           </radialGradient>
+          <!-- glow for a node sitting on the centre (light bursts out every way) -->
+          <radialGradient id="centerGlow" gradientUnits="userSpaceOnUse" cx="0" cy="0" r="120">
+            <stop offset="0%" stop-color="#fff7e6" stop-opacity="0.7" />
+            <stop offset="100%" stop-color="#fff7e6" stop-opacity="0" />
+          </radialGradient>
+          <!-- smoky (perlin) noise that warps the rays like drifting dust -->
+          <filter id="raynoise" x="-30%" y="-30%" width="160%" height="160%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.016 0.022" numOctaves="2" seed="4" result="n" />
+            <feDisplacementMap in="SourceGraphic" in2="n" scale="18" xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+          <filter id="lineGlow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="1.4" />
+          </filter>
           <clipPath id="discClip">
             <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} />
           </clipPath>
@@ -431,6 +448,14 @@
             <rect x="-125" y="-175" width="250" height="550" fill="white" />
             {#each drawn.angles as a (a.id)}
               <circle cx={a.vx} cy={a.vy} r={PIN_R} fill="black" />
+            {/each}
+          </mask>
+          <!-- punch the node holes out of the engraved lines, so a line stops at
+               a hole's rim instead of floating across the open recess -->
+          <mask id="faceHoles">
+            <rect x="-125" y="-175" width="250" height="550" fill="white" />
+            {#each drawn.angles as a (a.id)}
+              <circle cx={a.vx} cy={a.vy} r={PIN_R - 0.5} fill="black" />
             {/each}
           </mask>
         </defs>
@@ -502,30 +527,42 @@
           </g>
         {/each}
 
-        <!-- chords, engraved as bevelled grooves -->
-        <g class="relief" clip-path="url(#discClip)" filter="url(#relief)">
-          {#each drawn.segments as s (s.id)}
-            <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} class="cut {s.kind}" />
-          {/each}
-        </g>
-        <g clip-path="url(#discClip)">
-          {#each drawn.segments as s (s.id)}
-            <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} class="kerf {s.kind}" />
-          {/each}
+        <!-- chords + outer circle, engraved; masked so they stop at node holes
+             rather than crossing the open recesses -->
+        <g mask="url(#faceHoles)">
+          <g class="relief" clip-path="url(#discClip)" filter="url(#relief)">
+            {#each drawn.segments as s (s.id)}
+              <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} class="cut {s.kind}" />
+            {/each}
+          </g>
+          <g clip-path="url(#discClip)">
+            {#each drawn.segments as s (s.id)}
+              <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} class="kerf {s.kind}" />
+            {/each}
+          </g>
+          <g class="relief" filter="url(#relief)">
+            <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="cut rim" fill="none" />
+          </g>
+          <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="kerf rim" fill="none" />
         </g>
 
-        <!-- the outer circle, drawn last so it runs through every node (brass
-             and steel alike) — a uniform policy for all game nodes -->
-        <g class="relief" filter="url(#relief)">
-          <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="cut rim" fill="none" />
+        <!-- a faint glow off every engraved line once the lock is opening -->
+        <g class="line-glow" filter="url(#lineGlow)">
+          {#each drawn.segments as s (s.id)}
+            <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} class="glow-line" />
+          {/each}
+          <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="glow-line" fill="none" />
         </g>
-        <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="kerf rim" fill="none" />
 
         <!-- god rays through the open (set-back) holes, from the centre; inside
-             the lock group so they scale/rotate with it and stay aligned -->
-        <g class="rays">
+             the lock group so they scale/rotate with it and stay aligned. Centre
+             nodes glow out in all directions. Smoky noise warps them. -->
+        <g class="rays" filter="url(#raynoise)">
           {#each rayCones as pts (pts)}
             <polygon points={pts} fill="url(#rayGrad)" />
+          {/each}
+          {#each centerGlows as a (a.id)}
+            <circle cx={a.vx} cy={a.vy} r="120" fill="url(#centerGlow)" />
           {/each}
         </g>
         </g>
@@ -950,10 +987,11 @@
     transition: transform 0.66s var(--bounce);
   }
 
-  /* god rays: additive light, fading in as the lock opens */
+  /* god rays: additive light. A node's ray appears as soon as it's solved
+     (during play), and they intensify as the lock opens. */
   .rays {
     mix-blend-mode: screen;
-    opacity: 0;
+    opacity: 0.6;
     pointer-events: none;
     transition: opacity 0.6s ease;
   }
@@ -961,6 +999,22 @@
   .screen.rotate .rays,
   .screen.flash .rays {
     opacity: 1;
+  }
+  /* faint light off every engraved line, only once the lock is opening */
+  .line-glow {
+    mix-blend-mode: screen;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.6s ease;
+  }
+  .screen.rotate .line-glow,
+  .screen.flash .line-glow {
+    opacity: 0.5;
+  }
+  .glow-line {
+    stroke: #fff3d8;
+    stroke-width: 2;
+    fill: none;
   }
 
   .whiteout {
