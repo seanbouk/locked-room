@@ -125,6 +125,14 @@
   // interpolates the whole matrix, which adds a translation mid-tween and makes
   // the pin swing out — the "jump" we saw.) Bounce easing for the clunk.
   const pinTurn = $derived(spun ? 'rotate(90)' : 'rotate(0)');
+  // How far a "down" wedge sits back. During play / the end drop it sinks
+  // (PIN_BACK) into its hole. But once the WHOLE lock recedes, the sunk wedges
+  // return to flush (1) so the lock face catches up to them and they recede as
+  // one — instead of the pins sitting in a deeper hole than the plate (which
+  // also exposed the bevelled hole edge as an unwanted metal ring).
+  const wedgeBack = $derived(
+    phase === 'circleBack' || phase === 'rotate' || phase === 'doors' || phase === 'flash' ? 1 : PIN_BACK,
+  );
   // The whole lock scales about the user origin (0,0) = circle centre, and rotates.
   const lockXf = $derived(
     phase === 'rotate' || phase === 'doors' || phase === 'flash'
@@ -182,11 +190,31 @@
   let doorOcc = 1; // 1 = doors fully block the void, 0 = swung open
   let lit = $state(false); // started raining light at least once (fades canvas in)
 
-  // Constant brightness from a given point of light — the picture gets brighter
-  // ONLY because solving / receding / the door swing reveals more open AREA, not
-  // because we crank a multiplier. (intro fades up from black.)
-  const INTENSITY = 1.0;
-  const intensityTarget = () => (phase === 'intro' ? 0 : INTENSITY);
+  // Brightness PER POINT OF LIGHT is never cranked up — the picture brightens
+  // only because more open AREA is revealed. The reverse: as the lock recedes
+  // and the doors open, so much area opens that we tween the per-pixel exposure
+  // DOWN, so the finale still reads brighter (more area) without blowing to a
+  // flat white sheet — you can still pick out the donut. (intro fades from black.)
+  const intensityTarget = () => {
+    switch (phase) {
+      case 'intro':
+        return 0;
+      case 'play':
+      case 'drop':
+        return 1.0;
+      case 'spin':
+        return 0.9;
+      case 'circleBack':
+        return 0.7;
+      case 'rotate':
+        return 0.6;
+      case 'doors':
+      case 'flash':
+        return 0.5;
+      default:
+        return 1.0;
+    }
+  };
 
   function syncSize() {
     if (!glCanvas) return;
@@ -749,11 +777,11 @@
              outline). They swing open toward the viewer (3D rotateY about their
              outer edge) once the lock has turned — the reward for solving it. -->
         <g class="door door-L" clip-path="url(#doorClipL)">
-          <path d={doorPath('L')} fill-rule="evenodd" class="door-steel" filter="url(#bevel)" />
+          <path d={doorPath('L')} fill-rule="evenodd" class="door-steel" style:fill={debugTint ? tintColor(900) : null} filter="url(#bevel)" />
           <path d={doorPath('L')} fill-rule="evenodd" class="door-grain" filter="url(#brushed)" />
         </g>
         <g class="door door-R" clip-path="url(#doorClipR)">
-          <path d={doorPath('R')} fill-rule="evenodd" class="door-steel" filter="url(#bevel)" />
+          <path d={doorPath('R')} fill-rule="evenodd" class="door-steel" style:fill={debugTint ? tintColor(901) : null} filter="url(#bevel)" />
           <path d={doorPath('R')} fill-rule="evenodd" class="door-grain" filter="url(#brushed)" />
         </g>
 
@@ -789,7 +817,7 @@
                     class:down={dn}
                     style:fill={debugTint ? tintColor(pinBase[ai] + j) : null}
                     style:transition-delay={dropDelayMs(ai, j)}
-                    transform={`scale(${dn ? PIN_BACK : 1})`}
+                    transform={`scale(${dn ? wedgeBack : 1})`}
                     filter="url(#bevel)"
                   />
                 {/each}

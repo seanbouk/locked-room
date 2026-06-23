@@ -105,7 +105,13 @@ void main(){
   float rays = texture(uRays, vUV).r;
   float core = texture(uCore, vUV).r;
   float L = (rays + core*uCoreMix) * uIntensity;
-  o = vec4(uTint * L, 1.0);
+  // Soft tone-map (Reinhard): highlights roll off toward white instead of
+  // hard-clipping, so even a large bright opening keeps its shape (you can
+  // still read the donut) rather than flattening to a white sheet.
+  float t = L / (1.0 + L);
+  // dim light is warm-tinted; the brightest cores push toward white.
+  vec3 c = mix(uTint, vec3(1.0), smoothstep(0.55, 1.0, t)) * t;
+  o = vec4(c, 1.0);
 }`;
 
 function compile(gl: WebGL2RenderingContext, type: number, src: string): WebGLShader {
