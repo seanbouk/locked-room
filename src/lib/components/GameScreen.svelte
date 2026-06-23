@@ -276,16 +276,6 @@
     return ropeBeads.map((b) => ({ x: b.x, y: b.y }));
   });
 
-  // given (whole point known) | pending (mid multi-drag) | flash (just solved)
-  // | solved | unknown (a needed/working angle not yet found)
-  function angleState(id: string): 'given' | 'pending' | 'flash' | 'solved' | 'unknown' {
-    if (givenSet.has(id)) return 'given';
-    if (chain?.anchor === id) return 'pending';
-    if (flash.has(id)) return 'flash';
-    if (solved.has(id)) return 'solved';
-    return 'unknown';
-  }
-
   function reject() {
     shake = true;
     setTimeout(() => (shake = false), 260);
@@ -523,29 +513,6 @@
             <feComponentTransfer><feFuncA type="linear" slope="0.5" /></feComponentTransfer>
           </filter>
 
-          <!-- Real engraved bevels: blur the stroke alpha into a height map and
-               DIFFUSE-light it from the top-left. surfaceScale is negative so it
-               reads as cut INTO the steel; the two walls of the groove shade
-               oppositely on their own. The grey relief is `overlay`-blended onto
-               the steel (flat areas ~neutral) so the cut sits in the surface. A
-               little specular adds a glint on the lit wall. -->
-          <!-- Bevel only: blur the stroke alpha into a height map and diffuse-
-               light it from the top-left (negative surfaceScale = chamfered into
-               the steel). Flat level is overlay-neutral. The sharp black kerf is
-               drawn as a separate line on top, NOT in here. -->
-          <filter id="relief" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB">
-            <feGaussianBlur in="SourceAlpha" stdDeviation="0.8" result="b" />
-            <feDiffuseLighting in="b" surfaceScale="-7" diffuseConstant="1" lighting-color="#a7a7a7" result="d">
-              <feDistantLight azimuth="225" elevation="50" />
-            </feDiffuseLighting>
-            <!-- compress around neutral: lift the shadow floor, tame highlights,
-                 keep flat=0.5 so overlay stays a no-op off the cuts -->
-            <feComponentTransfer>
-              <feFuncR type="linear" slope="0.62" intercept="0.19" />
-              <feFuncG type="linear" slope="0.62" intercept="0.19" />
-              <feFuncB type="linear" slope="0.62" intercept="0.19" />
-            </feComponentTransfer>
-          </filter>
           <!-- god-ray cone: dark near the centre (behind the lock face), bright
                just past the hole, fading to the edge -->
           <radialGradient id="rayGrad" cx="0" cy="0" r="340" gradientUnits="userSpaceOnUse">
@@ -588,16 +555,6 @@
                the rim reads flat -->
           <mask id="shadeMask">
             <rect x="-125" y="-175" width="250" height="550" fill="white" />
-            {#each drawn.angles as a (a.id)}
-              <circle cx={a.vx} cy={a.vy} r={PIN_R} fill="black" />
-            {/each}
-          </mask>
-          <!-- a hole cut in the doors matching the lock's full outline (disc +
-               the pins that stick out past the rim), so when the lock recedes a
-               void gap opens up around it -->
-          <mask id="doorHole" maskUnits="userSpaceOnUse" x="-125" y="-175" width="250" height="550">
-            <rect x="-125" y="-175" width="250" height="550" fill="white" />
-            <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} fill="black" />
             {#each drawn.angles as a (a.id)}
               <circle cx={a.vx} cy={a.vy} r={PIN_R} fill="black" />
             {/each}
