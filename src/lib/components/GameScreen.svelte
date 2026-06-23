@@ -197,6 +197,16 @@
   let doorOcc = 1; // 1 = doors fully block the void, 0 = swung open
   let lit = $state(false); // started raining light at least once (fades canvas in)
 
+  // ── Dev HUD counter ─────────────────────────────────────────────────────────
+  // An on-screen marker so a recorded video can be referenced precisely: it
+  // shows the current PHASE, milliseconds since that phase began (my transition
+  // timings are per-phase ms offsets, so "rotate +180ms" maps straight to code),
+  // and a running frame number. Toggle with 'f'. Dev only.
+  let showCounter = $state(true);
+  let frameNo = $state(0);
+  let phaseMs = $state(0);
+  let phaseStartT = 0;
+
   // Brightness PER POINT OF LIGHT is never cranked up — the picture brightens
   // only because more open AREA is revealed. The reverse: as the lock recedes
   // and the doors open, so much area opens that we tween the per-pixel exposure
@@ -391,7 +401,17 @@
   }
 
   onMount(() => {
+    let counterRaf = 0;
+    let ro: ResizeObserver | null = null;
     if (import.meta.env.DEV) {
+      // always-on counter tick for the recording HUD
+      phaseStartT = performance.now();
+      const tick = () => {
+        frameNo += 1;
+        phaseMs = Math.round(performance.now() - phaseStartT);
+        counterRaf = requestAnimationFrame(tick);
+      };
+      counterRaf = requestAnimationFrame(tick);
       // dev-only test hook: apply the next productive placement (drives solves in
       // the puppeteer light diagnostic without simulating pointer drags).
       (window as unknown as { __solve?: () => string | null }).__solve = () => {
@@ -407,18 +427,19 @@
     if (glCanvas) {
       light = new GodLight(glCanvas);
       syncSize();
-      const ro = new ResizeObserver(() => {
+      ro = new ResizeObserver(() => {
         syncSize();
         pulse(60);
       });
       ro.observe(glCanvas);
       pulse(400);
-      return () => {
-        ro.disconnect();
-        if (rafId) cancelAnimationFrame(rafId);
-        light?.dispose();
-      };
     }
+    return () => {
+      if (counterRaf) cancelAnimationFrame(counterRaf);
+      ro?.disconnect();
+      if (rafId) cancelAnimationFrame(rafId);
+      light?.dispose();
+    };
   });
 
   // Re-light whenever the scene geometry changes: a solve (pins recede ~0.6s) or
@@ -451,6 +472,7 @@
   }
   $effect(() => {
     const p = phase;
+    phaseStartT = performance.now(); // reset the HUD phase clock
     if (!import.meta.env.DEV) return;
     // log the moment each phase begins; since the pin holds still once it's gone
     // back, every end-phase line should report the same pin centre/depth.
@@ -690,6 +712,7 @@
       debugAp = !debugAp;
       pulse(200);
     }
+    if (e.key === 'f') showCounter = !showCounter;
   }
 
   const chainName = $derived(chain ? ALL_KEYS[chain.keyId].name : '');
@@ -938,6 +961,13 @@
       <canvas bind:this={glCanvas} class="godlight" class:lit aria-hidden="true"></canvas>
       <!-- debug: press 'l' to see the raw aperture mask (white = light passes) -->
       <canvas bind:this={apDbg} class="apdbg" class:on={debugAp} aria-hidden="true"></canvas>
+
+      {#if import.meta.env.DEV && showCounter}
+        <!-- recording marker: PHASE, ms-since-phase-began, frame number. Type
+             e.g. "rotate +180ms" or "f1287" to point me at an exact moment.
+             Toggle with 'f'. -->
+        <div class="hud-frame">{phase} +{phaseMs}ms · f{frameNo}</div>
+      {/if}
 
       <div class="hud-top">
         <div class="titles">
@@ -1406,6 +1436,27 @@
     stroke: #fff3d8;
     stroke-width: 2;
     fill: none;
+  }
+
+  /* recording marker (dev): sits low-centre in the empty board area, well clear
+     of the lock; high-contrast monospace so it's legible in a screen capture */
+  .hud-frame {
+    position: absolute;
+    bottom: 0.6rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 60;
+    pointer-events: none;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.95rem;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+    color: #d6ff7a;
+    background: rgba(0, 0, 0, 0.72);
+    border: 1px solid rgba(214, 255, 122, 0.35);
+    border-radius: 7px;
+    padding: 0.2rem 0.55rem;
+    white-space: nowrap;
   }
 
   .whiteout {
