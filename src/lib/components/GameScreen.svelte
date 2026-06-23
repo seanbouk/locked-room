@@ -101,6 +101,8 @@
   const dropDelayMs = (ai: number, j: number) => `${(dropOrder.get(`${ai}-${j}`) ?? 0) * DROP_STAGGER}ms`;
 
   function startTransition() {
+    transitionT0 = performance.now(); // HUD clock anchor = the moment the lock starts opening
+    frameNo = 0;
     phase = 'drop'; // cascade the remaining wedges down
     const tDrop = Math.max(HB, dropOrder.size * DROP_STAGGER + 480);
     const tSpin = tDrop + 560;
@@ -198,14 +200,16 @@
   let lit = $state(false); // started raining light at least once (fades canvas in)
 
   // ── Dev HUD counter ─────────────────────────────────────────────────────────
-  // An on-screen marker so a recorded video can be referenced precisely: it
-  // shows the current PHASE, milliseconds since that phase began (my transition
-  // timings are per-phase ms offsets, so "rotate +180ms" maps straight to code),
-  // and a running frame number. Toggle with 'f'. Dev only.
+  // An on-screen marker so a recorded video can be referenced precisely. The
+  // clock is ANCHORED to a shared, visible event: T0 = the moment the lock
+  // starts opening (startTransition). Every transition timing in this file is an
+  // offset from exactly that moment, so "T+1240ms" maps straight to the code.
+  // Before the lock opens there's no scripted animation, so it just shows the
+  // phase. Toggle with 'f'. Dev only.
   let showCounter = $state(true);
   let frameNo = $state(0);
-  let phaseMs = $state(0);
-  let phaseStartT = 0;
+  let clockMs = $state(0);
+  let transitionT0 = $state(0);
 
   // Brightness PER POINT OF LIGHT is never cranked up — the picture brightens
   // only because more open AREA is revealed. The reverse: as the lock recedes
@@ -404,11 +408,13 @@
     let counterRaf = 0;
     let ro: ResizeObserver | null = null;
     if (import.meta.env.DEV) {
-      // always-on counter tick for the recording HUD
-      phaseStartT = performance.now();
+      // counter tick for the recording HUD: only advances once the lock starts
+      // opening (T0), so the value is anchored to a moment we both can see.
       const tick = () => {
-        frameNo += 1;
-        phaseMs = Math.round(performance.now() - phaseStartT);
+        if (transitionT0) {
+          clockMs = Math.round(performance.now() - transitionT0);
+          frameNo += 1;
+        }
         counterRaf = requestAnimationFrame(tick);
       };
       counterRaf = requestAnimationFrame(tick);
@@ -472,7 +478,6 @@
   }
   $effect(() => {
     const p = phase;
-    phaseStartT = performance.now(); // reset the HUD phase clock
     if (!import.meta.env.DEV) return;
     // log the moment each phase begins; since the pin holds still once it's gone
     // back, every end-phase line should report the same pin centre/depth.
@@ -963,10 +968,12 @@
       <canvas bind:this={apDbg} class="apdbg" class:on={debugAp} aria-hidden="true"></canvas>
 
       {#if import.meta.env.DEV && showCounter}
-        <!-- recording marker: PHASE, ms-since-phase-began, frame number. Type
-             e.g. "rotate +180ms" or "f1287" to point me at an exact moment.
+        <!-- recording marker. T0 = the moment the lock starts opening. Type e.g.
+             "T+1240ms" (or "f87 / phase rotate") to point me at an exact moment.
              Toggle with 'f'. -->
-        <div class="hud-frame">{phase} +{phaseMs}ms · f{frameNo}</div>
+        <div class="hud-frame">
+          {#if transitionT0}T+{clockMs}ms · {phase} · f{frameNo}{:else}{phase} · (T0 = lock opens){/if}
+        </div>
       {/if}
 
       <div class="hud-top">
