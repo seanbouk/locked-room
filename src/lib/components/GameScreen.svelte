@@ -133,12 +133,18 @@
   const wedgeBack = $derived(
     phase === 'circleBack' || phase === 'rotate' || phase === 'doors' || phase === 'flash' ? 1 : PIN_BACK,
   );
-  // The whole lock scales about the user origin (0,0) = circle centre, and rotates.
+  // The whole lock scales about the user origin (0,0) = circle centre, and
+  // rotates. It recedes by EXACTLY the same step a pin does (PIN_BACK), no more:
+  // there are only two depths in the whole game — "forward" and "one step back".
+  // At the end the plate recedes to that one step, meeting the already-back pins
+  // (which, now flush again, don't move), so the figure just sits one step back
+  // and a quarter-turned — never a third, deeper level.
+  const LOCK_BACK = PIN_BACK;
   const lockXf = $derived(
     phase === 'rotate' || phase === 'doors' || phase === 'flash'
-      ? 'scale(0.6) rotate(90)'
+      ? `scale(${LOCK_BACK}) rotate(90)`
       : phase === 'circleBack'
-        ? 'scale(0.6)'
+        ? `scale(${LOCK_BACK})`
         : '', // no transform during play/drop/spin, so it doesn't isolate blends
   );
 
