@@ -48,39 +48,84 @@
   let toast = $state('');
   let shake = $state(false);
 
-  // Level-transition state machine. A solved angle "sets back" (recedes toward
-  // the centre, behind). On the lock opening, a ~0.64s heartbeat: all nodes
-  // back -> the whole lock back -> rotate 90deg -> flash white -> next level.
+  // Level-transition state machine. Recede works PER SEGMENT now: solving an
+  // angle drops just its (brass) wedge. On the lock opening: drop the remaining
+  // wedges in a heavily-overlapped cascade -> spin every pin a quarter turn ->
+  // shrink the whole lock back -> rotate it 90deg -> flash white -> next level.
   const HB = 640;
-  type Phase = 'intro' | 'play' | 'allBack' | 'circleBack' | 'rotate' | 'flash';
+  type Phase = 'intro' | 'play' | 'drop' | 'spin' | 'circleBack' | 'rotate' | 'flash';
   let phase = $state<Phase>('intro');
   setTimeout(() => phase === 'intro' && (phase = 'play'), 40); // fade in from white
   const transitioning = $derived(phase !== 'play' && phase !== 'intro');
-  // During play a solved (non-given) angle is set back; in transition, all are.
+  // From 'drop' on, every wedge is down; from 'spin' on, every pin is turned.
+  const dropping = $derived(phase !== 'play' && phase !== 'intro');
+  const spun = $derived(phase === 'spin' || phase === 'circleBack' || phase === 'rotate' || phase === 'flash');
+  // Used only for the god rays (which radiate from a solved/open node centre).
   const nodeBack = (id: string) => (transitioning ? true : solved.has(id) && !givenSet.has(id));
 
+  // A wedge is "down" when it's the solved angle's marked wedge (during play),
+  // or once the end cascade has begun (everything drops).
+  const pieceDown = (ai: number, j: number) => {
+    if (dropping) return true;
+    const a = drawn.angles[ai];
+    return !givenSet.has(a.id) && solved.has(a.id) && a.pieces[j].marked;
+  };
+
+  // Cascade order for the end drop: finish the "half-done" pins first (the
+  // already-solved pins' still-up wedges), then everything else. Each wedge gets
+  // an incremental index -> a small staggered transition-delay (heavy overlap).
+  const DROP_STAGGER = 45; // ms between wedge starts
+  const dropOrder = $derived.by(() => {
+    const m = new Map<string, number>();
+    let idx = 0;
+    const downInPlay = (a: (typeof drawn.angles)[number], pc: { marked: boolean }) =>
+      !givenSet.has(a.id) && solved.has(a.id) && pc.marked;
+    // 1. remaining wedges of solved (non-given) pins
+    drawn.angles.forEach((a, ai) => {
+      if (givenSet.has(a.id) || !solved.has(a.id)) return;
+      a.pieces.forEach((pc, j) => {
+        if (!pc.marked) m.set(`${ai}-${j}`, idx++);
+      });
+    });
+    // 2. every other still-up wedge
+    drawn.angles.forEach((a, ai) => {
+      a.pieces.forEach((pc, j) => {
+        const key = `${ai}-${j}`;
+        if (m.has(key) || downInPlay(a, pc)) return;
+        m.set(key, idx++);
+      });
+    });
+    return m;
+  });
+  const dropDelayMs = (ai: number, j: number) => `${(dropOrder.get(`${ai}-${j}`) ?? 0) * DROP_STAGGER}ms`;
+
   function startTransition() {
-    setTimeout(() => (phase = 'allBack'), HB);
-    setTimeout(() => (phase = 'circleBack'), HB * 2);
-    setTimeout(() => (phase = 'rotate'), HB * 3);
-    setTimeout(() => (phase = 'flash'), HB * 4);
-    setTimeout(() => onComplete(), HB * 4 + 650);
+    phase = 'drop'; // cascade the remaining wedges down
+    const tDrop = Math.max(HB, dropOrder.size * DROP_STAGGER + 480);
+    setTimeout(() => (phase = 'spin'), tDrop); // quarter-turn every pin together
+    setTimeout(() => (phase = 'circleBack'), tDrop + 560);
+    setTimeout(() => (phase = 'rotate'), tDrop + 560 + HB);
+    setTimeout(() => (phase = 'flash'), tDrop + 560 + HB * 2);
+    setTimeout(() => onComplete(), tDrop + 560 + HB * 2 + 650);
   }
 
-  // A set-back pin recedes toward the VANISHING POINT (the puzzle centre = the
-  // user origin), so it both shrinks and drifts toward centre — reading as
-  // "moved back" in perspective, not just "shrunk in place". scale() about the
-  // origin does exactly this. The socket it leaves (node-cut/shade) stays put.
+  // A set-back wedge recedes toward the VANISHING POINT (the puzzle centre = the
+  // user origin): scale() about the origin shrinks it AND drifts it toward centre.
   const PIN_BACK = 0.91;
-  const pinXf = (a: { id: string; vx: number; vy: number }) =>
-    `scale(${nodeBack(a.id) ? PIN_BACK : 1})`;
+  // Once all wedges are down, every pin turns a quarter turn IN PLACE. We nest
+  // each pin as translate(centre) > rotate > translate(-centre) so the animated
+  // transform is a PLAIN rotate() about the group origin — CSS tweens that as a
+  // clean spin. (Rotating via the centred `rotate(90 cx cy)` attribute form
+  // interpolates the whole matrix, which adds a translation mid-tween and makes
+  // the pin swing out — the "jump" we saw.) Bounce easing for the clunk.
+  const pinTurn = $derived(spun ? 'rotate(90)' : 'rotate(0)');
   // The whole lock scales about the user origin (0,0) = circle centre, and rotates.
   const lockXf = $derived(
     phase === 'rotate' || phase === 'flash'
       ? 'scale(0.6) rotate(90)'
       : phase === 'circleBack'
         ? 'scale(0.6)'
-        : '', // no transform during play, so it doesn't isolate the blend modes
+        : '', // no transform during play/drop/spin, so it doesn't isolate blends
   );
 
   // God rays: a cone from the circle centre out through each open (set-back)
@@ -557,30 +602,39 @@
         <!-- the dark backplate: shows through every kerf gap and bored pin hole -->
         <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="backplate" />
 
-        <!-- PINS, rendered BEHIND the lock face so a receding pin is occluded by
-             the face — it reads as dropped back, not just shrunk. Each pin is
-             sliced into wedge pieces by every line through its vertex; it recedes
-             toward the puzzle centre (vanishing point) when set back. -->
+        <!-- PINS, rendered BEHIND the lock face so a receding wedge is occluded
+             by the face — it reads as dropped back, not just shrunk. Each pin is
+             sliced into wedge pieces by every line through its vertex. The marked
+             wedge (the angle) is solid brass; solving drops just that wedge; the
+             rest cascade down at the end, then every pin turns a quarter turn
+             (the <g class="pin-spin"> rotation), all together. -->
         {#each drawn.angles as a, ai (a.id)}
-          {@const st = angleState(a.id)}
-          {@const back = nodeBack(a.id)}
-          <g class="pin-face" class:back transform={pinXf(a)}>
-            {#each a.pieces as pc, j (j)}
-              {@const brass =
-                st === 'given' ||
-                ((st === 'solved' || st === 'flash' || st === 'pending') && pc.marked)}
-              <path
-                d={pc.d}
-                class="pin-piece"
-                class:brass={!debugTint && brass}
-                class:lit={!debugTint && (st === 'solved' || st === 'flash') && pc.marked}
-                style:fill={debugTint ? tintColor(pinBase[ai] + j) : null}
-                filter="url(#bevel)"
-              />
-            {/each}
-            {#if !debugTint && (st === 'unknown' || st === 'pending')}
-              <path d={a.arc} class="pin-arc {st}" />
-            {/if}
+          {@const given = givenSet.has(a.id)}
+          {@const fresh = flash.has(a.id)}
+          {@const rcx = (a.vx * PIN_BACK).toFixed(3)}
+          {@const rcy = (a.vy * PIN_BACK).toFixed(3)}
+          <!-- origin -> pin's receded centre, so the spin below is a clean
+               rotate about it; the inner group puts the pieces back at their
+               real coords. -->
+          <g transform="translate({rcx} {rcy})">
+            <g class="pin-spin" transform={pinTurn}>
+              <g transform="translate({(-a.vx * PIN_BACK).toFixed(3)} {(-a.vy * PIN_BACK).toFixed(3)})">
+                {#each a.pieces as pc, j (j)}
+                  {@const dn = pieceDown(ai, j)}
+                  <path
+                    d={pc.d}
+                    class="pin-piece"
+                    class:brass={!debugTint && (given || pc.marked)}
+                    class:lit={!debugTint && fresh && pc.marked}
+                    class:down={dn}
+                    style:fill={debugTint ? tintColor(pinBase[ai] + j) : null}
+                    style:transition-delay={dropDelayMs(ai, j)}
+                    transform={`scale(${dn ? PIN_BACK : 1})`}
+                    filter="url(#bevel)"
+                  />
+                {/each}
+              </g>
+            </g>
           </g>
         {/each}
 
@@ -1045,12 +1099,13 @@
     border-radius: 10px;
     font-size: 0.85rem;
   }
-  /* ── level transition: a pin sinks straight back into its bored hole ──
-     Transforms are SVG attributes (scale about the pin's / circle's own centre);
-     these transitions just smooth them, with a bouncy back-out for a clunk. */
-  /* real easeOutBounce (a ball settling) — cubic-bezier can't multi-bounce, so
+  /* ── level transition ──
+     Transforms are SVG attributes; these transitions just smooth them, with a
+     bouncy back-out for a mechanical clunk.
+     real easeOutBounce (a ball settling) — cubic-bezier can't multi-bounce, so
      use the linear() easing with the Penner bounce curve */
-  .pin-face,
+  .pin-piece,
+  .pin-spin,
   .lock {
     --bounce: linear(
       0, 0.012, 0.069, 0.169, 0.302, 0.474, 0.681 35%, 1 36.4%, 0.892, 0.819,
@@ -1058,11 +1113,16 @@
       0.966, 1 90.9%, 0.989, 0.984, 0.997, 1
     );
   }
-  .pin-face {
-    transition: transform 0.6s var(--bounce), opacity 0.5s ease;
+  /* each wedge recedes (toward the vanishing point) on its own delay */
+  .pin-piece {
+    transition: transform 0.5s var(--bounce), opacity 0.45s ease;
   }
-  .pin-face.back {
-    opacity: 0.9; /* a touch dimmer at the back of the hole */
+  .pin-piece.down {
+    opacity: 0.9; /* a touch dimmer once dropped back */
+  }
+  /* the quarter turn: a clean in-place rotation, all pins together, bounce-out */
+  .pin-spin {
+    transition: transform 0.55s var(--bounce);
   }
   .lock {
     transition: transform 0.66s var(--bounce);
