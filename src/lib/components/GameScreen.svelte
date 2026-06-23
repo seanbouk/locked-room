@@ -140,19 +140,23 @@
   // (which, now flush again, don't move), so the figure just sits one step back
   // and a quarter-turned — never a third, deeper level.
   const LOCK_BACK = PIN_BACK;
-  // The lock only RECEDES (one step). It does NOT rotate as a whole — that would
-  // orbit the pins around the puzzle centre. The 90° turn is the pins spinning
-  // in place (pinTurn), so the figure ends in its start orientation, one step
-  // back, with the pins quarter-turned.
+  // Sequence: the lock RECEDES one step (circleBack) with the pins held still,
+  // THEN the whole body turns 90° (rotate), carrying the pins rigidly with it.
+  // So the recede never shifts a pin, but the turn takes everything together.
   const lockXf = $derived(
-    phase === 'circleBack' || phase === 'rotate' || phase === 'doors' || phase === 'flash'
-      ? `scale(${LOCK_BACK})`
-      : '', // no transform during play/drop/spin, so it doesn't isolate blends
+    phase === 'rotate' || phase === 'doors' || phase === 'flash'
+      ? `scale(${LOCK_BACK}) rotate(90)`
+      : phase === 'circleBack'
+        ? `scale(${LOCK_BACK})`
+        : '', // no transform during play/drop/spin, so it doesn't isolate blends
   );
 
-  // Each door is its half of the board with the lock's outline (disc + the pins
-  // that straddle the rim) subtracted as evenodd holes — a real piece, so the
-  // same #bevel filter chamfers the cut-out edge like every other part. A small
+  // Each door is its half of the board with only the DISC cut out (one circle,
+  // so the #bevel filter chamfers a clean rim). We do NOT cut the rim pins: the
+  // pins render in the lock group, which is drawn ON TOP of the doors, so a pin
+  // that straddles the rim already shows over the solid door. Cutting pin holes
+  // as well meant the door's evenodd disc-hole and pin-hole overlapped and XOR'd
+  // back to filled — the stray "half pin" of steel stuck to the door. A small
   // inset from the seam (x=0) leaves a real kerf gap down the middle.
   const SEAM = 0.6;
   const doorPath = (side: 'L' | 'R') => {
@@ -161,14 +165,8 @@
       side === 'L'
         ? `M -125 -175 L ${-SEAM} -175 L ${-SEAM} 375 L -125 375 Z`
         : `M ${SEAM} -175 L 125 -175 L 125 375 L ${SEAM} 375 Z`;
-    let holes = ` M ${r} 0 A ${r} ${r} 0 1 1 ${-r} 0 A ${r} ${r} 0 1 1 ${r} 0 Z`;
-    for (const a of drawn.angles) {
-      const x0 = (a.vx + PIN_R).toFixed(2);
-      const x1 = (a.vx - PIN_R).toFixed(2);
-      const y = a.vy.toFixed(2);
-      holes += ` M ${x0} ${y} A ${PIN_R} ${PIN_R} 0 1 1 ${x1} ${y} A ${PIN_R} ${PIN_R} 0 1 1 ${x0} ${y} Z`;
-    }
-    return rect + holes;
+    const disc = ` M ${r} 0 A ${r} ${r} 0 1 1 ${-r} 0 A ${r} ${r} 0 1 1 ${r} 0 Z`;
+    return rect + disc;
   };
 
   let svgEl: SVGSVGElement;
@@ -203,25 +201,31 @@
   // and the doors open, so much area opens that we tween the per-pixel exposure
   // DOWN, so the finale still reads brighter (more area) without blowing to a
   // flat white sheet — you can still pick out the donut. (intro fades from black.)
+  // BRIGHTNESS is the single overall light knob; the per-phase values are the
+  // exposure roll-off (down as more area opens, so the finale doesn't blow out).
+  const BRIGHTNESS = 1.5;
   const intensityTarget = () => {
-    switch (phase) {
-      case 'intro':
-        return 0;
-      case 'play':
-      case 'drop':
-        return 1.0;
-      case 'spin':
-        return 0.9;
-      case 'circleBack':
-        return 0.7;
-      case 'rotate':
-        return 0.6;
-      case 'doors':
-      case 'flash':
-        return 0.5;
-      default:
-        return 1.0;
-    }
+    const exposure = (() => {
+      switch (phase) {
+        case 'intro':
+          return 0;
+        case 'play':
+        case 'drop':
+          return 1.0;
+        case 'spin':
+          return 0.9;
+        case 'circleBack':
+          return 0.7;
+        case 'rotate':
+          return 0.6;
+        case 'doors':
+        case 'flash':
+          return 0.5;
+        default:
+          return 1.0;
+      }
+    })();
+    return BRIGHTNESS * exposure;
   };
 
   function syncSize() {
