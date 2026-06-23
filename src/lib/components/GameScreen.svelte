@@ -188,18 +188,22 @@
       case 'intro':
         return 0.0;
       case 'play':
-        return 0.35;
+        return 0.7;
       case 'drop':
+        return 1.1;
       case 'spin':
-        return 0.55;
+        return 1.5;
+      // the lock recedes into the hole: the revealed "donut" around it is the
+      // payoff — make it blaze.
       case 'circleBack':
+        return 2.6;
       case 'rotate':
-        return 0.9;
+        return 2.8;
       case 'doors':
       case 'flash':
-        return 1.5;
+        return 3.2;
       default:
-        return 0.4;
+        return 0.8;
     }
   };
 
@@ -325,7 +329,10 @@
     });
     lit = true;
     const easing = Math.abs(it - intensity) > 0.01 || Math.abs(doorTarget - doorOcc) > 0.01;
-    if (performance.now() < animateUntil || easing) rafId = requestAnimationFrame(frame);
+    // Always keep rendering through the whole transition (pieces are moving every
+    // frame), so the aperture never lags the recede / spin / door swing.
+    const live = phase !== 'play' && phase !== 'intro';
+    if (live || performance.now() < animateUntil || easing) rafId = requestAnimationFrame(frame);
   }
 
   // Keep the light rendering for `ms` (covers an animation), then idle.
