@@ -86,7 +86,10 @@ void main(){
   for(int i=0;i<128;i++){
     if(i>=uSamples) break;
     float t = float(i)/float(uSamples-1);
-    float w = 1.0 - t*0.82;            // this pixel weighted most, fading inward
+    // steep falloff: a pixel is lit mostly by openings very close to it, so a
+    // shaft is bright right at its gap and fades off quickly (early thin gaps
+    // don't bloom into a blinding wash).
+    float w = pow(1.0 - t, 3.0);
     acc += texture(uTex, vUV + toC*(t*uReach)).r * w;
     wsum += w;
   }
@@ -105,12 +108,11 @@ void main(){
   float rays = texture(uRays, vUV).r;
   float core = texture(uCore, vUV).r;
   float L = (rays + core*uCoreMix) * uIntensity;
-  // Soft tone-map (Reinhard): highlights roll off toward white instead of
-  // hard-clipping, so even a large bright opening keeps its shape (you can
-  // still read the donut) rather than flattening to a white sheet.
-  float t = L / (1.0 + L);
-  // dim light is warm-tinted; the brightest cores push toward white.
-  vec3 c = mix(uTint, vec3(1.0), smoothstep(0.55, 1.0, t)) * t;
+  // Exponential roll-off: saturates to brilliant white at the bright end (a big
+  // opening reads pure white) while still easing the dim gaps up from black, so
+  // it never hard-clips.
+  float t = 1.0 - exp(-L * 1.4);
+  vec3 c = uTint * t;
   o = vec4(c, 1.0);
 }`;
 

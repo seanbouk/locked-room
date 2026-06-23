@@ -142,15 +142,19 @@
   // (which, now flush again, don't move), so the figure just sits one step back
   // and a quarter-turned — never a third, deeper level.
   const LOCK_BACK = PIN_BACK;
-  // Sequence: the lock RECEDES one step (circleBack) with the pins held still,
-  // THEN the whole body turns 90° (rotate), carrying the pins rigidly with it.
-  // So the recede never shifts a pin, but the turn takes everything together.
+  // Sequence: the lock RECEDES one step (circleBack), with the pins held still,
+  // THEN the whole body turns 90° (rotate), carrying the pins rigidly. Finally
+  // the whole lock SLIDES UP off the top (doors/flash) — the translate is the
+  // outermost (screen-space) term so it lifts straight up regardless of the
+  // scale/rotate — leaving just the light as the doors slide away.
   const lockXf = $derived(
-    phase === 'rotate' || phase === 'doors' || phase === 'flash'
-      ? `scale(${LOCK_BACK}) rotate(90)`
-      : phase === 'circleBack'
-        ? `scale(${LOCK_BACK})`
-        : '', // no transform during play/drop/spin, so it doesn't isolate blends
+    phase === 'doors' || phase === 'flash'
+      ? `translate(0 -360) scale(${LOCK_BACK}) rotate(90)`
+      : phase === 'rotate'
+        ? `scale(${LOCK_BACK}) rotate(90)`
+        : phase === 'circleBack'
+          ? `scale(${LOCK_BACK})`
+          : '', // no transform during play/drop/spin, so it doesn't isolate blends
   );
 
   // Each door is its half of the board with only the DISC cut out (one circle,
@@ -195,7 +199,6 @@
   let animateUntil = 0;
   // eased state, advanced in the frame loop
   let intensity = 0;
-  let doorOcc = 1; // 1 = doors fully block the void, 0 = swung open
   let lit = $state(false); // started raining light at least once (fades canvas in)
 
   // ── Dev HUD counter ─────────────────────────────────────────────────────────
@@ -214,37 +217,11 @@
   // and the doors open, so much area opens that we tween the per-pixel exposure
   // DOWN, so the finale still reads brighter (more area) without blowing to a
   // flat white sheet — you can still pick out the donut. (intro fades from black.)
-  // BRIGHTNESS is the single overall light knob; the per-phase values are the
-  // exposure roll-off (down as more area opens, so the finale doesn't blow out).
+  // BRIGHTNESS is the single light knob. Per-point brightness is CONSTANT — the
+  // picture only gets brighter when the aperture reveals more open area (a wider
+  // gap, the doors sliding off, the lock leaving), never a per-phase multiplier.
   const BRIGHTNESS = 1.5;
-  const intensityTarget = () => {
-    const exposure = (() => {
-      switch (phase) {
-        case 'intro':
-          return 0;
-        case 'play':
-        case 'drop':
-          return 1.0;
-        case 'spin':
-          return 0.9;
-        case 'circleBack':
-          return 0.8;
-        case 'rotate':
-          return 0.7;
-        // Doors open -> a big new area of void is uncovered, so the backlight
-        // stays ON; the large open area naturally reads bright (the radial blur
-        // integrates more light). Only a gentle per-point roll-off so it doesn't
-        // hard-clip to a flat white sheet.
-        case 'doors':
-          return 0.65;
-        case 'flash':
-          return 0.6;
-        default:
-          return 1.0;
-      }
-    })();
-    return BRIGHTNESS * exposure;
-  };
+  const intensityTarget = () => (phase === 'intro' ? 0 : BRIGHTNESS);
 
   function syncSize() {
     if (!glCanvas) return;
@@ -316,18 +293,19 @@
     // evenodd disc-hole spills a filled half-disc across the seam and buries the
     // revealed "donut" until the doors physically swing away.
     const drawDoor = (sel: string, side: 'L' | 'R') => {
-      if (doorOcc <= 0.004) return;
       const el = svgEl.querySelector<SVGGraphicsElement>(sel);
       const scm = toDM(el?.getScreenCTM() ?? null);
       const d = el?.getAttribute('d');
       if (!scm || !d) return;
+      // getScreenCTM tracks the door's 2D slide, so as it slides off the centre
+      // opens and the light floods exactly in step with the visible door.
       const m = s2a.multiply(scm);
       apCtx.save();
       apCtx.setTransform(m.a, m.b, m.c, m.d, m.e, m.f);
       const clip = new Path2D();
       clip.rect(side === 'L' ? -125 : SEAM, -175, 125 - SEAM, 550);
       apCtx.clip(clip);
-      apCtx.fillStyle = doorOcc >= 1 ? '#000' : `rgba(0,0,0,${doorOcc})`;
+      apCtx.fillStyle = '#000';
       apCtx.fill(new Path2D(d), 'evenodd');
       apCtx.restore();
     };
@@ -369,11 +347,11 @@
     rafId = 0;
     if (!light?.enabled || !apW) return;
     syncSize();
-    // ease the animated scalars toward their phase targets
+    // ease intensity toward its (now constant) target — fade up from black on
+    // entry, otherwise hold steady. Brightness comes ONLY from how much open
+    // area the aperture reveals, never from a per-phase multiplier.
     const it = intensityTarget();
     intensity += (it - intensity) * 0.16;
-    const doorTarget = phase === 'doors' || phase === 'flash' ? 0 : 1;
-    doorOcc += (doorTarget - doorOcc) * 0.14;
     rasterizeAperture();
     light.render(aperture, {
       cx: centreX,
@@ -381,13 +359,13 @@
       erode: Math.max(2, apW * 0.008), // kills the ~kerf-width hairlines, keeps
       // the larger crescents a receding wedge / open hole exposes
       blurTaps: 28,
-      blurReach: 0.85,
+      blurReach: 0.6, // shorter shafts: bright at the gap, quick falloff
       coreMix: 0.7,
       intensity,
-      tint: [1.0, 0.86, 0.62],
+      tint: [1.0, 1.0, 1.0], // brilliant white
     });
     lit = true;
-    const easing = Math.abs(it - intensity) > 0.01 || Math.abs(doorTarget - doorOcc) > 0.01;
+    const easing = Math.abs(it - intensity) > 0.01;
     // Always keep rendering through the whole transition (pieces are moving every
     // frame), so the aperture never lags the recede / spin / door swing.
     const live = phase !== 'play' && phase !== 'intro';
@@ -1145,25 +1123,19 @@
     fill: #d2d8df;
     opacity: 0.12;
   }
-  /* the swing: each door hinges on its outer edge and opens toward the viewer */
+  /* the doors slide straight off to the sides (ease-out, no overshoot — a swing
+     can't be tracked by the light, and bounce made them jump back). */
   .door {
     transform-box: fill-box;
-    backface-visibility: hidden;
-    transition: transform 0.7s cubic-bezier(0.4, 0, 0.7, 1);
-  }
-  .door-L {
-    transform-origin: left center;
-  }
-  .door-R {
-    transform-origin: right center;
+    transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .screen.doors .door-L,
   .screen.flash .door-L {
-    transform: perspective(900px) rotateY(-86deg);
+    transform: translateX(-118%);
   }
   .screen.doors .door-R,
   .screen.flash .door-R {
-    transform: perspective(900px) rotateY(86deg);
+    transform: translateX(118%);
   }
   .plate-piece {
     fill: url(#plate);
