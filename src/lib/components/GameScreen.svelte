@@ -101,8 +101,6 @@
   const dropDelayMs = (ai: number, j: number) => `${(dropOrder.get(`${ai}-${j}`) ?? 0) * DROP_STAGGER}ms`;
 
   function startTransition() {
-    transitionT0 = performance.now(); // HUD clock anchor = the moment the lock starts opening
-    frameNo = 0;
     phase = 'drop'; // cascade the remaining wedges down
     const tDrop = Math.max(HB, dropOrder.size * DROP_STAGGER + 480);
     const tSpin = tDrop + 560;
@@ -133,9 +131,10 @@
   // return to flush (1) so the lock face catches up to them and they recede as
   // one — instead of the pins sitting in a deeper hole than the plate (which
   // also exposed the bevelled hole edge as an unwanted metal ring).
-  const wedgeBack = $derived(
-    phase === 'circleBack' || phase === 'rotate' || phase === 'doors' || phase === 'flash' ? 1 : PIN_BACK,
+  const endShow = $derived(
+    phase === 'circleBack' || phase === 'rotate' || phase === 'doors' || phase === 'flash',
   );
+  const wedgeBack = $derived(endShow ? 1 : PIN_BACK);
   // The whole lock scales about the user origin (0,0) = circle centre, and
   // rotates. It recedes by EXACTLY the same step a pin does (PIN_BACK), no more:
   // there are only two depths in the whole game — "forward" and "one step back".
@@ -201,15 +200,14 @@
 
   // ── Dev HUD counter ─────────────────────────────────────────────────────────
   // An on-screen marker so a recorded video can be referenced precisely. The
-  // clock is ANCHORED to a shared, visible event: T0 = the moment the lock
-  // starts opening (startTransition). Every transition timing in this file is an
-  // offset from exactly that moment, so "T+1240ms" maps straight to the code.
-  // Before the lock opens there's no scripted animation, so it just shows the
-  // phase. Toggle with 'f'. Dev only.
+  // clock RESETS at the start of each stage (phase), so the reading is always
+  // "stage + ms into that stage" — independent of how long earlier stages (e.g.
+  // the variable-length drop cascade) took. So "doors +650ms" maps straight to
+  // 650ms into the door swing. Reads "<phase> +<ms>ms · f<frame>". Toggle 'f'.
   let showCounter = $state(true);
   let frameNo = $state(0);
   let clockMs = $state(0);
-  let transitionT0 = $state(0);
+  let phaseStartT = 0;
 
   // Brightness PER POINT OF LIGHT is never cranked up — the picture brightens
   // only because more open AREA is revealed. The reverse: as the lock recedes
@@ -230,17 +228,17 @@
         case 'spin':
           return 0.9;
         case 'circleBack':
-          return 0.7;
+          return 0.8;
         case 'rotate':
-          return 0.6;
-        // As the doors swing open, fade the god-light right out: the doors
-        // opening is the whole effect here, and the final white flash (a
-        // separate overlay) covers the cut to the next room. Without this the
-        // fully-open aperture floods the screen with a translucent wash and
-        // silhouettes the pins to black.
+          return 0.7;
+        // Doors open -> a big new area of void is uncovered, so the backlight
+        // stays ON; the large open area naturally reads bright (the radial blur
+        // integrates more light). Only a gentle per-point roll-off so it doesn't
+        // hard-clip to a flat white sheet.
         case 'doors':
+          return 0.65;
         case 'flash':
-          return 0;
+          return 0.6;
         default:
           return 1.0;
       }
@@ -371,11 +369,9 @@
     rafId = 0;
     if (!light?.enabled || !apW) return;
     syncSize();
-    // ease the animated scalars toward their phase targets. Fade OUT fast (so
-    // the god-light is gone the instant the doors begin to open — no lingering
-    // wash), fade in gently.
+    // ease the animated scalars toward their phase targets
     const it = intensityTarget();
-    intensity += (it - intensity) * (it < intensity ? 0.4 : 0.16);
+    intensity += (it - intensity) * 0.16;
     const doorTarget = phase === 'doors' || phase === 'flash' ? 0 : 1;
     doorOcc += (doorTarget - doorOcc) * 0.14;
     rasterizeAperture();
@@ -408,13 +404,12 @@
     let counterRaf = 0;
     let ro: ResizeObserver | null = null;
     if (import.meta.env.DEV) {
-      // counter tick for the recording HUD: only advances once the lock starts
-      // opening (T0), so the value is anchored to a moment we both can see.
+      // counter tick for the recording HUD: ms + frames since the current stage
+      // (phase) began; reset by the phase $effect below.
+      phaseStartT = performance.now();
       const tick = () => {
-        if (transitionT0) {
-          clockMs = Math.round(performance.now() - transitionT0);
-          frameNo += 1;
-        }
+        clockMs = Math.round(performance.now() - phaseStartT);
+        frameNo += 1;
         counterRaf = requestAnimationFrame(tick);
       };
       counterRaf = requestAnimationFrame(tick);
@@ -479,6 +474,9 @@
   $effect(() => {
     const p = phase;
     if (!import.meta.env.DEV) return;
+    phaseStartT = performance.now(); // reset the HUD stage clock
+    frameNo = 0;
+    clockMs = 0;
     // log the moment each phase begins; since the pin holds still once it's gone
     // back, every end-phase line should report the same pin centre/depth.
     requestAnimationFrame(() => traceState(p));
@@ -885,6 +883,12 @@
           <g class="pin-back" transform="translate({rcx} {rcy})">
             <g class="pin-spin" transform={pinTurn}>
               <g class="pin-back" transform="translate({(-a.vx * wedgeBack).toFixed(3)} {(-a.vy * wedgeBack).toFixed(3)})">
+                <!-- once the lock is closing up, a solid gunmetal disc behind the
+                     wedges so a rim pin reads as one solid pin (not thin wedges
+                     over the open void) and stays visible against the flood -->
+                {#if endShow && !debugTint}
+                  <circle cx={a.vx} cy={a.vy} r={PIN_R} class="pin-backing" transform={`scale(${wedgeBack})`} filter="url(#bevel)" />
+                {/if}
                 {#each a.pieces as pc, j (j)}
                   {@const dn = pieceDown(ai, j)}
                   <path
@@ -968,12 +972,10 @@
       <canvas bind:this={apDbg} class="apdbg" class:on={debugAp} aria-hidden="true"></canvas>
 
       {#if import.meta.env.DEV && showCounter}
-        <!-- recording marker. T0 = the moment the lock starts opening. Type e.g.
-             "T+1240ms" (or "f87 / phase rotate") to point me at an exact moment.
-             Toggle with 'f'. -->
-        <div class="hud-frame">
-          {#if transitionT0}T+{clockMs}ms · {phase} · f{frameNo}{:else}{phase} · (T0 = lock opens){/if}
-        </div>
+        <!-- recording marker: <stage> +<ms into stage> · f<frames into stage>.
+             Resets each stage, so e.g. "doors +650ms" points me at an exact
+             moment regardless of how long earlier stages took. Toggle with 'f'. -->
+        <div class="hud-frame">{phase} +{clockMs}ms · f{frameNo}</div>
       {/if}
 
       <div class="hud-top">
@@ -1186,6 +1188,10 @@
   /* a pin's wedge piece: a real beveled slice. Steel by default; brass for the
      marked angle (given / solved), brighter brass when freshly solved. */
   .pin-piece {
+    fill: url(#plate);
+  }
+  /* solid gunmetal backing so a pin reads as one piece at the end */
+  .pin-backing {
     fill: url(#plate);
   }
   .pin-piece.brass {
