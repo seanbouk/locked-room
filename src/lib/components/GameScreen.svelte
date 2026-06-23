@@ -1,8 +1,10 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { Lock } from '../engine/game';
   import { drawPuzzle, PIN_R } from '../render/figure';
   import { makeRope, stepRope, type Bead } from '../render/rope';
   import { ALL_KEYS, type Placement } from '../engine/theorems';
+  import { GodLight } from '../render/godlight';
   import type { Level } from '../engine/levels';
 
   let {
@@ -62,9 +64,6 @@
   const spun = $derived(
     phase === 'spin' || phase === 'circleBack' || phase === 'rotate' || phase === 'doors' || phase === 'flash',
   );
-  // Used only for the god rays (which radiate from a solved/open node centre).
-  const nodeBack = (id: string) => (transitioning ? true : solved.has(id) && !givenSet.has(id));
-
   // A wedge is "down" when it's the solved angle's marked wedge (during play),
   // or once the end cascade has begun (everything drops).
   const pieceDown = (ai: number, j: number) => {
@@ -156,38 +155,223 @@
     return rect + holes;
   };
 
-  // God rays: a cone from the circle centre out through each open (set-back)
-  // hole, widening to the board edge. Radiating from a light behind the centre.
-  const RAY_L = 340;
-  const rayCones = $derived(
-    drawn.angles
-      .filter((a) => nodeBack(a.id) && Math.hypot(a.vx, a.vy) > 6)
-      .map((a) => {
-        const d = Math.hypot(a.vx, a.vy);
-        const px = -a.vy / d;
-        const py = a.vx / d; // unit perpendicular
-        const reach = (x: number, y: number) => {
-          const s = RAY_L / Math.hypot(x, y);
-          return `${(x * s).toFixed(1)},${(y * s).toFixed(1)}`;
-        };
-        // The hole is the light aperture: the beam STARTS at the hole's near rim
-        // and widens outward (away from the centre). Emanating the cone from the
-        // disc centre instead would narrow it through the hole and slice a bright
-        // edge across the opening — so build a trapezoid from the rim, not a
-        // triangle from the origin.
-        const n1 = `${(a.vx + PIN_R * px).toFixed(1)},${(a.vy + PIN_R * py).toFixed(1)}`;
-        const n2 = `${(a.vx - PIN_R * px).toFixed(1)},${(a.vy - PIN_R * py).toFixed(1)}`;
-        const f1 = reach(a.vx + PIN_R * px, a.vy + PIN_R * py);
-        const f2 = reach(a.vx - PIN_R * px, a.vy - PIN_R * py);
-        return `${n1} ${f1} ${f2} ${n2}`;
-      }),
-  );
-  // nodes sitting on the centre can't cast a directional cone — they glow out.
-  const centerGlows = $derived(
-    drawn.angles.filter((a) => nodeBack(a.id) && Math.hypot(a.vx, a.vy) <= 6),
-  );
-
   let svgEl: SVGSVGElement;
+
+  // ── God-light ───────────────────────────────────────────────────────────────
+  // Volumetric shafts derived from the lock's REAL negative space (see
+  // render/godlight.ts). We rasterise the live occluder geometry — every solid
+  // piece, read straight off the DOM at its current animated transform — into an
+  // "aperture" canvas (white = open void/light, black = steel), and a WebGL pass
+  // erodes the thin kerfs to black, streaks the wider openings radially outward
+  // from the centre, and tints them warm. The result is screen-blended over the
+  // SVG, so the resting state (only hairline kerfs) reads exactly as before, and
+  // every recede / open / door-swing widens the apertures and blooms the light.
+  const VB = { x: -125, y: -175, w: 250, h: 550 }; // = drawn.viewBox
+  let glCanvas = $state<HTMLCanvasElement>();
+  let apDbg = $state<HTMLCanvasElement>(); // debug: shows the raw aperture mask
+  let debugAp = $state(false);
+  let light: GodLight | null = null;
+  const aperture = document.createElement('canvas');
+  const apCtx = aperture.getContext('2d')!;
+  let apW = 0;
+  let apH = 0;
+  let rafId = 0;
+  let animateUntil = 0;
+  // eased state, advanced in the frame loop
+  let intensity = 0;
+  let doorOcc = 1; // 1 = doors fully block the void, 0 = swung open
+  let lit = $state(false); // started raining light at least once (fades canvas in)
+
+  // Brightness target by phase: faint during play, blooming as the lock opens.
+  const intensityTarget = () => {
+    switch (phase) {
+      case 'intro':
+        return 0.0;
+      case 'play':
+        return 0.35;
+      case 'drop':
+      case 'spin':
+        return 0.55;
+      case 'circleBack':
+      case 'rotate':
+        return 0.9;
+      case 'doors':
+      case 'flash':
+        return 1.5;
+      default:
+        return 0.4;
+    }
+  };
+
+  function syncSize() {
+    if (!glCanvas) return;
+    const rect = glCanvas.getBoundingClientRect();
+    if (rect.height < 2) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const MAXH = 1100;
+    const h = Math.min(MAXH, Math.round(rect.height * dpr));
+    const w = Math.round((h * VB.w) / VB.h);
+    if (w === apW && h === apH) return;
+    apW = w;
+    apH = h;
+    aperture.width = w;
+    aperture.height = h;
+    light?.resize(w, h);
+  }
+
+  // Light-source centre (disc centre = svg origin) in aperture px, set each
+  // rasterise so the radial streak originates correctly even with letterboxing.
+  let centreX = 0;
+  let centreY = 0;
+
+  // Screen-px → aperture-px matrix. We read geometry via getScreenCTM() (robust:
+  // it includes CSS transforms and works through clip/mask groups, unlike
+  // getCTM) and map it into the aperture through the canvas's own box.
+  function screenToAp(): DOMMatrix | null {
+    if (!glCanvas) return null;
+    const r = glCanvas.getBoundingClientRect();
+    if (r.width < 2 || r.height < 2) return null;
+    return new DOMMatrix([
+      apW / r.width, 0, 0, apH / r.height, (-r.left * apW) / r.width, (-r.top * apH) / r.height,
+    ]);
+  }
+
+  // getScreenCTM() returns a legacy SVGMatrix in some engines (no transformPoint
+  // / multiply), so always wrap it in a real DOMMatrix.
+  const toDM = (m: DOMMatrix | null): DOMMatrix | null =>
+    m ? new DOMMatrix([m.a, m.b, m.c, m.d, m.e, m.f]) : null;
+
+  // Rasterise the negative space: white = light gets through, black = occluder.
+  function rasterizeAperture() {
+    if (!svgEl || !apW) return;
+    const s2a = screenToAp();
+    const rootCtm = toDM(svgEl.getScreenCTM());
+    if (!s2a || !rootCtm) return;
+    apCtx.setTransform(1, 0, 0, 1, 0, 0);
+    apCtx.fillStyle = '#fff'; // the bright room behind everything
+    apCtx.fillRect(0, 0, apW, apH);
+
+    const c0 = s2a.transformPoint(rootCtm.transformPoint(new DOMPoint(0, 0)));
+    centreX = c0.x;
+    centreY = c0.y;
+
+    // 1. the doors + the lock-face plate pieces block the void (black). Doors
+    //    fade out as they swing open, flooding the outer board with light.
+    const draw = (sel: string, alpha: number, rule: CanvasFillRule) => {
+      if (alpha <= 0.004) return;
+      apCtx.fillStyle = alpha >= 1 ? '#000' : `rgba(0,0,0,${alpha})`;
+      svgEl.querySelectorAll<SVGGraphicsElement>(sel).forEach((el) => {
+        const scm = toDM(el.getScreenCTM());
+        const d = el.getAttribute('d');
+        if (!scm || !d) return;
+        const m = s2a.multiply(scm);
+        apCtx.setTransform(m.a, m.b, m.c, m.d, m.e, m.f);
+        apCtx.fill(new Path2D(d), rule);
+      });
+    };
+    draw('.door-steel', doorOcc, 'evenodd');
+    draw('.plate-piece', 1, 'nonzero');
+
+    // 2. bore the pin holes back open (the face has a hole at every pin) in the
+    //    lock group's current transform — light spills through wherever the pin
+    //    behind doesn't fill it.
+    const lockScm = toDM(svgEl.querySelector<SVGGraphicsElement>('.lock')?.getScreenCTM() ?? null);
+    if (lockScm) {
+      const lm = s2a.multiply(lockScm);
+      apCtx.setTransform(1, 0, 0, 1, 0, 0);
+      apCtx.fillStyle = '#fff';
+      for (const a of drawn.angles) {
+        const c = lm.transformPoint(new DOMPoint(a.vx, a.vy));
+        const e = lm.transformPoint(new DOMPoint(a.vx + PIN_R, a.vy));
+        const rad = Math.hypot(e.x - c.x, e.y - c.y);
+        apCtx.beginPath();
+        apCtx.arc(c.x, c.y, rad, 0, Math.PI * 2);
+        apCtx.fill();
+      }
+    }
+
+    // 3. the pin pieces themselves re-occlude their holes (black). A receded /
+    //    dropped-back wedge fills less, leaving a ring/shaft of light.
+    draw('.pin-piece', 1, 'nonzero');
+    apCtx.setTransform(1, 0, 0, 1, 0, 0);
+
+    if (debugAp && apDbg) {
+      apDbg.width = apW;
+      apDbg.height = apH;
+      apDbg.getContext('2d')!.drawImage(aperture, 0, 0);
+    }
+  }
+
+  function frame() {
+    rafId = 0;
+    if (!light?.enabled || !apW) return;
+    syncSize();
+    // ease the animated scalars toward their phase targets
+    const it = intensityTarget();
+    intensity += (it - intensity) * 0.16;
+    const doorTarget = phase === 'doors' || phase === 'flash' ? 0 : 1;
+    doorOcc += (doorTarget - doorOcc) * 0.14;
+    rasterizeAperture();
+    light.render(aperture, {
+      cx: centreX,
+      cy: centreY, // disc centre (origin) in aperture px
+      erode: Math.max(2, apW * 0.008), // kills the ~kerf-width hairlines, keeps
+      // the larger crescents a receding wedge / open hole exposes
+      blurTaps: 28,
+      blurReach: 0.85,
+      coreMix: 0.7,
+      intensity,
+      tint: [1.0, 0.86, 0.62],
+    });
+    lit = true;
+    const easing = Math.abs(it - intensity) > 0.01 || Math.abs(doorTarget - doorOcc) > 0.01;
+    if (performance.now() < animateUntil || easing) rafId = requestAnimationFrame(frame);
+  }
+
+  // Keep the light rendering for `ms` (covers an animation), then idle.
+  function pulse(ms: number) {
+    animateUntil = Math.max(animateUntil, performance.now() + ms);
+    if (!rafId) rafId = requestAnimationFrame(frame);
+  }
+
+  onMount(() => {
+    if (import.meta.env.DEV) {
+      // dev-only test hook: apply the next productive placement (drives solves in
+      // the puppeteer light diagnostic without simulating pointer drags).
+      (window as unknown as { __solve?: () => string | null }).__solve = () => {
+        for (const p of lock.availablePlacements(keyring)) {
+          if (!appliedLabels.has(p.label) && lock.probe(p).length > 0) {
+            apply(p);
+            return p.label;
+          }
+        }
+        return null;
+      };
+    }
+    if (glCanvas) {
+      light = new GodLight(glCanvas);
+      syncSize();
+      const ro = new ResizeObserver(() => {
+        syncSize();
+        pulse(60);
+      });
+      ro.observe(glCanvas);
+      pulse(400);
+      return () => {
+        ro.disconnect();
+        if (rafId) cancelAnimationFrame(rafId);
+        light?.dispose();
+      };
+    }
+  });
+
+  // Re-light whenever the scene geometry changes: a solve (pins recede ~0.6s) or
+  // a phase change (the transition runs for a few seconds).
+  $effect(() => {
+    solved.size; // track
+    phase; // track
+    if (light?.enabled) pulse(phase === 'play' ? 900 : 2600);
+  });
 
   // Dragging a key off the tray.
   let drag = $state<null | { keyId: string; x: number; y: number }>(null);
@@ -418,6 +602,10 @@
   function onKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') endChain();
     if (e.key === 'd') debugTint = !debugTint;
+    if (e.key === 'l') {
+      debugAp = !debugAp;
+      pulse(200);
+    }
   }
 
   const chainName = $derived(chain ? ALL_KEYS[chain.keyId].name : '');
@@ -453,23 +641,25 @@
 <div class="screen {phase}" class:shake>
       <svg bind:this={svgEl} viewBox={drawn.viewBox} class:open={transitioning} role="img" aria-label="lock puzzle">
         <defs>
+          <!-- gunmetal: dark blue-grey steel, so the screen-blended god-light
+               reads as a bright top layer instead of washing into pale steel -->
           <linearGradient id="steel" x1="0" y1="0" x2="0.25" y2="1">
-            <stop offset="0%" stop-color="#bcc3cc" />
-            <stop offset="48%" stop-color="#9aa2ad" />
-            <stop offset="52%" stop-color="#8d96a1" />
-            <stop offset="100%" stop-color="#6c727d" />
+            <stop offset="0%" stop-color="#5b636e" />
+            <stop offset="48%" stop-color="#3d434d" />
+            <stop offset="52%" stop-color="#363c45" />
+            <stop offset="100%" stop-color="#23272f" />
           </linearGradient>
           <radialGradient id="disc" cx="38%" cy="32%" r="82%">
-            <stop offset="0%" stop-color="#b7bec8" />
-            <stop offset="62%" stop-color="#949ca8" />
-            <stop offset="100%" stop-color="#767d89" />
+            <stop offset="0%" stop-color="#586069" />
+            <stop offset="62%" stop-color="#3a404a" />
+            <stop offset="100%" stop-color="#262a32" />
           </radialGradient>
-          <!-- steel fill for a sliced plate piece (per-piece bounding box, so
+          <!-- gunmetal fill for a sliced plate piece (per-piece bounding box, so
                each piece carries its own top-left-lit sheen) -->
           <radialGradient id="plate" cx="38%" cy="30%" r="85%">
-            <stop offset="0%" stop-color="#c2c9d3" />
-            <stop offset="55%" stop-color="#9aa2ad" />
-            <stop offset="100%" stop-color="#6f7681" />
+            <stop offset="0%" stop-color="#5e6671" />
+            <stop offset="55%" stop-color="#3c424c" />
+            <stop offset="100%" stop-color="#23272f" />
           </radialGradient>
           <!-- per-piece bevel: blur the shape's own alpha into a height map and
                light it from the top-left (azimuth 225). Diffuse gives the matte
@@ -486,21 +676,22 @@
             </feDiffuseLighting>
             <feComposite in="df" in2="SourceGraphic" operator="arithmetic" k1="1" k2="0" k3="0" k4="0" result="lit" />
             <!-- specular glint on the lit wall, clipped to the shape, added on top -->
-            <feSpecularLighting in="b" surfaceScale="3" specularConstant="0.8" specularExponent="16" lighting-color="#fff" result="sp">
+            <feSpecularLighting in="b" surfaceScale="3" specularConstant="0.4" specularExponent="22" lighting-color="#fff" result="sp">
               <feDistantLight azimuth="225" elevation="55" />
             </feSpecularLighting>
             <feComposite in="sp" in2="SourceAlpha" operator="in" result="spc" />
             <feComposite in="lit" in2="spc" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" />
           </filter>
+          <!-- copper: warm orange-brown (kept golden, not pushed to red) -->
           <linearGradient id="brass" x1="0" y1="0" x2="0.3" y2="1">
-            <stop offset="0%" stop-color="#e9c668" />
-            <stop offset="50%" stop-color="#c2922f" />
-            <stop offset="100%" stop-color="#8f6a1e" />
+            <stop offset="0%" stop-color="#e0a45f" />
+            <stop offset="50%" stop-color="#b3702f" />
+            <stop offset="100%" stop-color="#7d4a20" />
           </linearGradient>
           <radialGradient id="brassLit" cx="40%" cy="34%" r="78%">
-            <stop offset="0%" stop-color="#ffe9a8" />
-            <stop offset="55%" stop-color="#f1bd54" />
-            <stop offset="100%" stop-color="#b07f28" />
+            <stop offset="0%" stop-color="#f6cf97" />
+            <stop offset="55%" stop-color="#d28e47" />
+            <stop offset="100%" stop-color="#9c5e26" />
           </radialGradient>
           <radialGradient id="discShade" cx="50%" cy="50%" r="50%">
             <stop offset="0%" stop-color="#000" stop-opacity="0" />
@@ -513,34 +704,6 @@
             <feComponentTransfer><feFuncA type="linear" slope="0.5" /></feComponentTransfer>
           </filter>
 
-          <!-- god-ray cone: dark near the centre (behind the lock face), bright
-               just past the hole, fading to the edge -->
-          <radialGradient id="rayGrad" cx="0" cy="0" r="340" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stop-color="#fff7e6" stop-opacity="0" />
-            <stop offset="26%" stop-color="#fff7e6" stop-opacity="0" />
-            <stop offset="33%" stop-color="#fff7e6" stop-opacity="0.55" />
-            <stop offset="100%" stop-color="#fff7e6" stop-opacity="0" />
-          </radialGradient>
-          <!-- glow for a node sitting on the centre (light bursts out every way) -->
-          <radialGradient id="centerGlow" gradientUnits="userSpaceOnUse" cx="0" cy="0" r="120">
-            <stop offset="0%" stop-color="#fff7e6" stop-opacity="0.7" />
-            <stop offset="100%" stop-color="#fff7e6" stop-opacity="0" />
-          </radialGradient>
-          <!-- perlin noise as a luminance mask: it MULTIPLIES the rays' alpha in
-               patches (smoke), leaving the cone edges hard -->
-          <filter id="rayNoiseTex" x="-20%" y="-20%" width="140%" height="140%">
-            <feTurbulence type="fractalNoise" baseFrequency="0.02 0.028" numOctaves="3" seed="6" result="n" />
-            <feColorMatrix in="n" type="saturate" values="0" result="g" />
-            <feComponentTransfer in="g">
-              <feFuncR type="linear" slope="0.75" intercept="0.38" />
-              <feFuncG type="linear" slope="0.75" intercept="0.38" />
-              <feFuncB type="linear" slope="0.75" intercept="0.38" />
-              <feFuncA type="linear" slope="0" intercept="1" />
-            </feComponentTransfer>
-          </filter>
-          <mask id="rayNoiseMask" maskUnits="userSpaceOnUse" x="-220" y="-320" width="440" height="640">
-            <rect x="-220" y="-320" width="440" height="640" filter="url(#rayNoiseTex)" />
-          </mask>
           <filter id="lineGlow" x="-20%" y="-20%" width="140%" height="140%">
             <feGaussianBlur stdDeviation="1.4" />
           </filter>
@@ -652,20 +815,9 @@
 
         <!-- inner vignette over the face (masked off the pins) -->
         <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} fill="url(#discShade)" mask="url(#shadeMask)" />
-
-        <!-- god rays through the open (set-back) holes, from the centre; inside
-             the lock group so they scale/rotate with it and stay aligned. Centre
-             nodes glow out in all directions. Smoky noise warps them. -->
-        <g class="rays" mask="url(#rayNoiseMask)">
-          {#each rayCones as pts (pts)}
-            <polygon points={pts} fill="url(#rayGrad)" />
-          {/each}
-          {#each centerGlows as a (a.id)}
-            <circle cx={a.vx} cy={a.vy} r="120" fill="url(#centerGlow)" />
-          {/each}
         </g>
-        </g>
-        <!-- /lock -->
+        <!-- /lock — god-light now lives in the <canvas> overlay, derived from the
+             real openings rather than painted cones -->
 
         {#if preview}
           <polygon points={previewPoly} class="tri-preview" />
@@ -694,6 +846,12 @@
           <circle cx={a.vx} cy={a.vy} r="26" class="hit" data-angle={a.id} />
         {/each}
       </svg>
+
+      <!-- god-light: WebGL shafts streaming through the lock's real openings,
+           screen-blended over the steel. Pure eye-candy — pointer-events none. -->
+      <canvas bind:this={glCanvas} class="godlight" class:lit aria-hidden="true"></canvas>
+      <!-- debug: press 'l' to see the raw aperture mask (white = light passes) -->
+      <canvas bind:this={apDbg} class="apdbg" class:on={debugAp} aria-hidden="true"></canvas>
 
       <div class="hud-top">
         <div class="titles">
@@ -927,11 +1085,11 @@
   /* solved: the angle's slice fills with brass (rest of the circle stays steel) */
   .pin-slice {
     fill: url(#brassLit);
-    filter: drop-shadow(0 0 4px rgba(255, 205, 100, 0.5));
+    filter: drop-shadow(0 0 4px rgba(225, 150, 80, 0.5));
   }
   .pin-slice.flash {
-    fill: #fff2cf;
-    filter: drop-shadow(0 0 9px rgba(255, 220, 120, 0.95));
+    fill: #ffdcb0;
+    filter: drop-shadow(0 0 9px rgba(230, 160, 90, 0.95));
   }
   /* bevel source for brass edges — ~half the steel cut girth */
   .brass-edge {
@@ -1106,18 +1264,36 @@
     transition: transform 0.66s var(--bounce);
   }
 
-  /* god rays: additive light. A node's ray appears as soon as it's solved
-     (during play), and they intensify as the lock opens. */
-  .rays {
+  /* god-light: a WebGL canvas of volumetric shafts streaming through the lock's
+     real openings, screen-blended (so its black background adds nothing) over
+     the steel. Sits above the SVG, below the HUD. Fades in once it has rendered
+     a frame so there's never a black flash before the first paint. */
+  .godlight {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
     mix-blend-mode: screen;
-    opacity: 0.6;
     pointer-events: none;
-    transition: opacity 0.6s ease;
+    opacity: 0;
+    transition: opacity 0.4s ease;
   }
-  .screen.circleBack .rays,
-  .screen.rotate .rays,
-  .screen.flash .rays {
+  .godlight.lit {
     opacity: 1;
+  }
+  /* debug aperture overlay: opaque mask straight from the rasteriser */
+  .apdbg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    pointer-events: none;
+    opacity: 0;
+  }
+  .apdbg.on {
+    opacity: 0.92;
   }
   /* faint light off every engraved line, only once the lock is opening */
   .line-glow {
