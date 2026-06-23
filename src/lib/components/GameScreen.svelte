@@ -182,30 +182,11 @@
   let doorOcc = 1; // 1 = doors fully block the void, 0 = swung open
   let lit = $state(false); // started raining light at least once (fades canvas in)
 
-  // Brightness target by phase: faint during play, blooming as the lock opens.
-  const intensityTarget = () => {
-    switch (phase) {
-      case 'intro':
-        return 0.0;
-      case 'play':
-        return 0.7;
-      case 'drop':
-        return 1.1;
-      case 'spin':
-        return 1.5;
-      // the lock recedes into the hole: the revealed "donut" around it is the
-      // payoff — make it blaze.
-      case 'circleBack':
-        return 2.6;
-      case 'rotate':
-        return 2.8;
-      case 'doors':
-      case 'flash':
-        return 3.2;
-      default:
-        return 0.8;
-    }
-  };
+  // Constant brightness from a given point of light — the picture gets brighter
+  // ONLY because solving / receding / the door swing reveals more open AREA, not
+  // because we crank a multiplier. (intro fades up from black.)
+  const INTENSITY = 1.0;
+  const intensityTarget = () => (phase === 'intro' ? 0 : INTENSITY);
 
   function syncSize() {
     if (!glCanvas) return;
@@ -273,7 +254,27 @@
         apCtx.fill(new Path2D(d), rule);
       });
     };
-    draw('.door-steel', doorOcc, 'evenodd');
+    // Doors: each is clipped to its own half (as in the SVG), otherwise its
+    // evenodd disc-hole spills a filled half-disc across the seam and buries the
+    // revealed "donut" until the doors physically swing away.
+    const drawDoor = (sel: string, side: 'L' | 'R') => {
+      if (doorOcc <= 0.004) return;
+      const el = svgEl.querySelector<SVGGraphicsElement>(sel);
+      const scm = toDM(el?.getScreenCTM() ?? null);
+      const d = el?.getAttribute('d');
+      if (!scm || !d) return;
+      const m = s2a.multiply(scm);
+      apCtx.save();
+      apCtx.setTransform(m.a, m.b, m.c, m.d, m.e, m.f);
+      const clip = new Path2D();
+      clip.rect(side === 'L' ? -125 : SEAM, -175, 125 - SEAM, 550);
+      apCtx.clip(clip);
+      apCtx.fillStyle = doorOcc >= 1 ? '#000' : `rgba(0,0,0,${doorOcc})`;
+      apCtx.fill(new Path2D(d), 'evenodd');
+      apCtx.restore();
+    };
+    drawDoor('.door-L .door-steel', 'L');
+    drawDoor('.door-R .door-steel', 'R');
     draw('.plate-piece', 1, 'nonzero');
 
     // 2. bore the pin holes back open (the face has a hole at every pin) in the
