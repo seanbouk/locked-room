@@ -53,13 +53,15 @@
   // wedges in a heavily-overlapped cascade -> spin every pin a quarter turn ->
   // shrink the whole lock back -> rotate it 90deg -> flash white -> next level.
   const HB = 640;
-  type Phase = 'intro' | 'play' | 'drop' | 'spin' | 'circleBack' | 'rotate' | 'flash';
+  type Phase = 'intro' | 'play' | 'drop' | 'spin' | 'circleBack' | 'rotate' | 'doors' | 'flash';
   let phase = $state<Phase>('intro');
   setTimeout(() => phase === 'intro' && (phase = 'play'), 40); // fade in from white
   const transitioning = $derived(phase !== 'play' && phase !== 'intro');
   // From 'drop' on, every wedge is down; from 'spin' on, every pin is turned.
   const dropping = $derived(phase !== 'play' && phase !== 'intro');
-  const spun = $derived(phase === 'spin' || phase === 'circleBack' || phase === 'rotate' || phase === 'flash');
+  const spun = $derived(
+    phase === 'spin' || phase === 'circleBack' || phase === 'rotate' || phase === 'doors' || phase === 'flash',
+  );
   // Used only for the god rays (which radiate from a solved/open node centre).
   const nodeBack = (id: string) => (transitioning ? true : solved.has(id) && !givenSet.has(id));
 
@@ -102,11 +104,16 @@
   function startTransition() {
     phase = 'drop'; // cascade the remaining wedges down
     const tDrop = Math.max(HB, dropOrder.size * DROP_STAGGER + 480);
+    const tSpin = tDrop + 560;
+    const tBack = tSpin + 520;
+    const tRot = tBack + HB;
+    const tDoors = tRot + HB; // the lock has turned; now the doors swing open
     setTimeout(() => (phase = 'spin'), tDrop); // quarter-turn every pin together
-    setTimeout(() => (phase = 'circleBack'), tDrop + 560);
-    setTimeout(() => (phase = 'rotate'), tDrop + 560 + HB);
-    setTimeout(() => (phase = 'flash'), tDrop + 560 + HB * 2);
-    setTimeout(() => onComplete(), tDrop + 560 + HB * 2 + 650);
+    setTimeout(() => (phase = 'circleBack'), tSpin);
+    setTimeout(() => (phase = 'rotate'), tBack);
+    setTimeout(() => (phase = 'doors'), tRot);
+    setTimeout(() => (phase = 'flash'), tDoors + 520); // flash once the doors are open
+    setTimeout(() => onComplete(), tDoors + 520 + 600);
   }
 
   // A set-back wedge recedes toward the VANISHING POINT (the puzzle centre = the
@@ -121,12 +128,33 @@
   const pinTurn = $derived(spun ? 'rotate(90)' : 'rotate(0)');
   // The whole lock scales about the user origin (0,0) = circle centre, and rotates.
   const lockXf = $derived(
-    phase === 'rotate' || phase === 'flash'
+    phase === 'rotate' || phase === 'doors' || phase === 'flash'
       ? 'scale(0.6) rotate(90)'
       : phase === 'circleBack'
         ? 'scale(0.6)'
         : '', // no transform during play/drop/spin, so it doesn't isolate blends
   );
+
+  // Each door is its half of the board with the lock's outline (disc + the pins
+  // that straddle the rim) subtracted as evenodd holes — a real piece, so the
+  // same #bevel filter chamfers the cut-out edge like every other part. A small
+  // inset from the seam (x=0) leaves a real kerf gap down the middle.
+  const SEAM = 0.6;
+  const doorPath = (side: 'L' | 'R') => {
+    const r = drawn.circle.r;
+    const rect =
+      side === 'L'
+        ? `M -125 -175 L ${-SEAM} -175 L ${-SEAM} 375 L -125 375 Z`
+        : `M ${SEAM} -175 L 125 -175 L 125 375 L ${SEAM} 375 Z`;
+    let holes = ` M ${r} 0 A ${r} ${r} 0 1 1 ${-r} 0 A ${r} ${r} 0 1 1 ${r} 0 Z`;
+    for (const a of drawn.angles) {
+      const x0 = (a.vx + PIN_R).toFixed(2);
+      const x1 = (a.vx - PIN_R).toFixed(2);
+      const y = a.vy.toFixed(2);
+      holes += ` M ${x0} ${y} A ${PIN_R} ${PIN_R} 0 1 1 ${x1} ${y} A ${PIN_R} ${PIN_R} 0 1 1 ${x0} ${y} Z`;
+    }
+    return rect + holes;
+  };
 
   // God rays: a cone from the circle centre out through each open (set-back)
   // hole, widening to the board edge. Radiating from a light behind the centre.
@@ -552,6 +580,10 @@
           <clipPath id="discClip">
             <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} />
           </clipPath>
+          <!-- each door is clipped to its own half so the evenodd hole can't
+               spill filled steel across into the other half (behind the lock) -->
+          <clipPath id="doorClipL"><rect x="-125" y="-175" width="124.4" height="550" /></clipPath>
+          <clipPath id="doorClipR"><rect x="0.6" y="-175" width="124.4" height="550" /></clipPath>
           <!-- the inner vignette is masked out of the pin circles so a pin near
                the rim reads flat -->
           <mask id="shadeMask">
@@ -581,20 +613,20 @@
           </mask>
         </defs>
 
-        <!-- the dark void behind the doors, revealed through the lock-shaped
-             hole when the lock recedes into it -->
-        <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r + PIN_R + 4} class="door-void" />
+        <!-- the dark depth behind the doors, revealed through the lock hole and
+             through the seam, and when the doors swing open at the end -->
+        <rect x="-125" y="-175" width="250" height="550" class="door-void" />
 
-        <!-- the two doors (brushed steel) + seam, with a hole cut to the lock's
-             outline so the lock seats into them and a gap opens when it recedes -->
-        <g mask="url(#doorHole)">
-          <rect x="-125" y="-175" width="250" height="550" fill="url(#steel)" />
-          <rect x="-125" y="-175" width="250" height="550" fill="#d2d8df" filter="url(#brushed)" opacity="0.16" />
-          <!-- seam between the doors. Vertical, lit top-left: bright lip left,
-               shadow lip right, black kerf down the centre. -->
-          <line x1="0" y1="-175" x2="0" y2="375" class="seam-lip shadow" transform="translate(-0.95 0)" />
-          <line x1="0" y1="-175" x2="0" y2="375" class="seam-lip light" transform="translate(0.95 0)" />
-          <line x1="0" y1="-175" x2="0" y2="375" class="kerf seam" />
+        <!-- the two doors as real beveled pieces (board half minus the lock
+             outline). They swing open toward the viewer (3D rotateY about their
+             outer edge) once the lock has turned — the reward for solving it. -->
+        <g class="door door-L" clip-path="url(#doorClipL)">
+          <path d={doorPath('L')} fill-rule="evenodd" class="door-steel" filter="url(#bevel)" />
+          <path d={doorPath('L')} fill-rule="evenodd" class="door-grain" filter="url(#brushed)" />
+        </g>
+        <g class="door door-R" clip-path="url(#doorClipR)">
+          <path d={doorPath('R')} fill-rule="evenodd" class="door-steel" filter="url(#bevel)" />
+          <path d={doorPath('R')} fill-rule="evenodd" class="door-grain" filter="url(#brushed)" />
         </g>
 
         <!-- everything that recedes / rotates as the lock opens -->
@@ -860,9 +892,38 @@
   .backplate {
     fill: #0a0c10;
   }
-  /* the void behind the doors, seen through the lock-shaped hole on recede */
+  /* the void behind the doors, seen through the lock hole + seam, and when the
+     doors swing open */
   .door-void {
     fill: #06070a;
+  }
+  /* the two doors: real beveled steel pieces with the lock outline cut out */
+  .door-steel {
+    fill: url(#steel);
+  }
+  .door-grain {
+    fill: #d2d8df;
+    opacity: 0.12;
+  }
+  /* the swing: each door hinges on its outer edge and opens toward the viewer */
+  .door {
+    transform-box: fill-box;
+    backface-visibility: hidden;
+    transition: transform 0.7s cubic-bezier(0.4, 0, 0.7, 1);
+  }
+  .door-L {
+    transform-origin: left center;
+  }
+  .door-R {
+    transform-origin: right center;
+  }
+  .screen.doors .door-L,
+  .screen.flash .door-L {
+    transform: perspective(900px) rotateY(-86deg);
+  }
+  .screen.doors .door-R,
+  .screen.flash .door-R {
+    transform: perspective(900px) rotateY(86deg);
   }
   .plate-piece {
     fill: url(#plate);
@@ -875,46 +936,6 @@
   .rim-edge {
     stroke: #14171d;
     stroke-width: 1.2;
-  }
-
-  /* the raw groove stroke; the #relief filter lights it into a real bevel,
-     and overlay-blends the grey relief onto the steel so it sits in the surface */
-  .relief {
-    mix-blend-mode: overlay;
-  }
-  .cut {
-    stroke: #fff;
-    stroke-width: 1.9;
-    stroke-linecap: round;
-  }
-  .cut.seam {
-    stroke-width: 2.1;
-  }
-  .cut.rim {
-    stroke-width: 2.2;
-  }
-  /* the machined cut itself: a sharp, near-black line laid over the bevel */
-  .kerf {
-    stroke: #0b0d11;
-    stroke-width: 1;
-    stroke-linecap: round;
-  }
-  .kerf.seam {
-    stroke-width: 1.1;
-  }
-  .kerf.rim {
-    stroke-width: 1.2;
-  }
-  /* explicit bevel lips for the vertical seam */
-  .seam-lip {
-    stroke-width: 1.3;
-    stroke-linecap: round;
-  }
-  .seam-lip.light {
-    stroke: #d4dae1;
-  }
-  .seam-lip.shadow {
-    stroke: #353b44;
   }
 
   .corner-dot {
