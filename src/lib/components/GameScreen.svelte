@@ -117,7 +117,8 @@
 
   // A set-back wedge recedes toward the VANISHING POINT (the puzzle centre = the
   // user origin): scale() about the origin shrinks it AND drifts it toward centre.
-  const PIN_BACK = 0.91;
+  // Back-amount 0.126 (≈ the old 0.09 + 40%), i.e. everything settles to 0.874.
+  const PIN_BACK = 0.874;
   // Once all wedges are down, every pin turns a quarter turn IN PLACE. We nest
   // each pin as translate(centre) > rotate > translate(-centre) so the animated
   // transform is a PLAIN rotate() about the group origin — CSS tweens that as a
@@ -218,9 +219,14 @@
           return 0.7;
         case 'rotate':
           return 0.6;
+        // As the doors swing open, fade the god-light right out: the doors
+        // opening is the whole effect here, and the final white flash (a
+        // separate overlay) covers the cut to the next room. Without this the
+        // fully-open aperture floods the screen with a translucent wash and
+        // silhouettes the pins to black.
         case 'doors':
         case 'flash':
-          return 0.5;
+          return 0;
         default:
           return 1.0;
       }
@@ -351,9 +357,11 @@
     rafId = 0;
     if (!light?.enabled || !apW) return;
     syncSize();
-    // ease the animated scalars toward their phase targets
+    // ease the animated scalars toward their phase targets. Fade OUT fast (so
+    // the god-light is gone the instant the doors begin to open — no lingering
+    // wash), fade in gently.
     const it = intensityTarget();
-    intensity += (it - intensity) * 0.16;
+    intensity += (it - intensity) * (it < intensity ? 0.4 : 0.16);
     const doorTarget = phase === 'doors' || phase === 'flash' ? 0 : 1;
     doorOcc += (doorTarget - doorOcc) * 0.14;
     rasterizeAperture();
