@@ -1449,7 +1449,7 @@
      of the lock; high-contrast monospace so it's legible in a screen capture */
   .hud-frame {
     position: absolute;
-    bottom: 0.6rem;
+    top: 63%; /* just below the key tray (which sits at ~51%) */
     left: 50%;
     transform: translateX(-50%);
     z-index: 60;
