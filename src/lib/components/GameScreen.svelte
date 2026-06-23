@@ -140,12 +140,14 @@
   // (which, now flush again, don't move), so the figure just sits one step back
   // and a quarter-turned — never a third, deeper level.
   const LOCK_BACK = PIN_BACK;
+  // The lock only RECEDES (one step). It does NOT rotate as a whole — that would
+  // orbit the pins around the puzzle centre. The 90° turn is the pins spinning
+  // in place (pinTurn), so the figure ends in its start orientation, one step
+  // back, with the pins quarter-turned.
   const lockXf = $derived(
-    phase === 'rotate' || phase === 'doors' || phase === 'flash'
-      ? `scale(${LOCK_BACK}) rotate(90)`
-      : phase === 'circleBack'
-        ? `scale(${LOCK_BACK})`
-        : '', // no transform during play/drop/spin, so it doesn't isolate blends
+    phase === 'circleBack' || phase === 'rotate' || phase === 'doors' || phase === 'flash'
+      ? `scale(${LOCK_BACK})`
+      : '', // no transform during play/drop/spin, so it doesn't isolate blends
   );
 
   // Each door is its half of the board with the lock's outline (disc + the pins
@@ -413,6 +415,34 @@
     solved.size; // track
     phase; // track
     if (light?.enabled) pulse(phase === 'play' ? 900 : 2600);
+  });
+
+  // ── Transition trace (dev) ──────────────────────────────────────────────────
+  // Logs the SETTLED geometry of the lock and a sample pin at each phase, so we
+  // can discuss what moves with shared numbers. Coords are viewBox units (puzzle
+  // space); depth = on-screen scale where 1.000 = "forward" (rest). If a pin's
+  // centre/depth is unchanged across phases, it did not move.
+  function traceState(tag: string) {
+    if (!svgEl) return;
+    const root = svgEl.getScreenCTM();
+    if (!root) return;
+    const inv = toDM(root)!.inverse();
+    const rootScale = Math.hypot(root.a, root.b);
+    const read = (sel: string, x: number, y: number) => {
+      const m = toDM(svgEl.querySelector<SVGGraphicsElement>(sel)?.getScreenCTM() ?? null);
+      if (!m) return 'n/a';
+      const c = inv.transformPoint(m.transformPoint(new DOMPoint(x, y)));
+      return `depth=${(Math.hypot(m.a, m.b) / rootScale).toFixed(3)} centre=(${c.x.toFixed(1)},${c.y.toFixed(1)})`;
+    };
+    const a0 = drawn.angles[0];
+    console.log(`[lock-anim ${tag.padEnd(10)}] lock { ${read('.lock', 0, 0)} }  pin "${a0.id}" { ${read('.pin-piece', a0.vx, a0.vy)} }`);
+  }
+  $effect(() => {
+    const p = phase;
+    if (!import.meta.env.DEV) return;
+    // log the moment each phase begins; since the pin holds still once it's gone
+    // back, every end-phase line should report the same pin centre/depth.
+    requestAnimationFrame(() => traceState(p));
   });
 
   // Dragging a key off the tray.
@@ -805,14 +835,16 @@
         {#each drawn.angles as a, ai (a.id)}
           {@const given = givenSet.has(a.id)}
           {@const fresh = flash.has(a.id)}
-          {@const rcx = (a.vx * PIN_BACK).toFixed(3)}
-          {@const rcy = (a.vy * PIN_BACK).toFixed(3)}
-          <!-- origin -> pin's receded centre, so the spin below is a clean
-               rotate about it; the inner group puts the pieces back at their
-               real coords. -->
-          <g transform="translate({rcx} {rcy})">
+          {@const rcx = (a.vx * wedgeBack).toFixed(3)}
+          {@const rcy = (a.vy * wedgeBack).toFixed(3)}
+          <!-- origin -> the wedge's CURRENT centre (scaled by wedgeBack), so the
+               spin below is a clean rotate about that centre even after the
+               wedges flush back; the inner group puts the pieces at their real
+               coords. Matching the translate to the wedge scale is what keeps
+               the pin dead still as the lock recedes. -->
+          <g class="pin-back" transform="translate({rcx} {rcy})">
             <g class="pin-spin" transform={pinTurn}>
-              <g transform="translate({(-a.vx * PIN_BACK).toFixed(3)} {(-a.vy * PIN_BACK).toFixed(3)})">
+              <g class="pin-back" transform="translate({(-a.vx * wedgeBack).toFixed(3)} {(-a.vy * wedgeBack).toFixed(3)})">
                 {#each a.pieces as pc, j (j)}
                   {@const dn = pieceDown(ai, j)}
                   <path
@@ -822,7 +854,7 @@
                     class:lit={!debugTint && fresh && pc.marked}
                     class:down={dn}
                     style:fill={debugTint ? tintColor(pinBase[ai] + j) : null}
-                    style:transition-delay={dropDelayMs(ai, j)}
+                    style:transition-delay={phase === 'drop' ? dropDelayMs(ai, j) : '0ms'}
                     transform={`scale(${dn ? wedgeBack : 1})`}
                     filter="url(#bevel)"
                   />
@@ -1291,16 +1323,26 @@
       0.966, 1 90.9%, 0.989, 0.984, 0.997, 1
     );
   }
-  /* each wedge recedes (toward the vanishing point) on its own delay */
+  /* each wedge recedes (toward the vanishing point) on its own delay. Duration
+     matches .lock (0.66s) so when the wedges flush back AS the lock recedes,
+     the two scales stay in lock-step and the pin's net depth — hence its
+     position — does not drift mid-tween. */
   .pin-piece {
-    transition: transform 0.5s var(--bounce), opacity 0.45s ease;
+    transition: transform 0.66s var(--bounce), opacity 0.45s ease;
   }
   .pin-piece.down {
     opacity: 0.9; /* a touch dimmer once dropped back */
   }
   /* the quarter turn: a clean in-place rotation, all pins together, bounce-out */
   .pin-spin {
-    transition: transform 0.55s var(--bounce);
+    transition: transform 0.66s var(--bounce);
+  }
+  /* the nesting that positions the spin pivot at the wedge's current centre.
+     Eases in lock-step with the wedge scale and the lock recede (all 0.66s
+     --bounce) so the pivot tracks the wedge as it flushes — keeps the pin dead
+     still through the recede instead of wobbling. */
+  .pin-back {
+    transition: transform 0.66s var(--bounce);
   }
   .lock {
     transition: transform 0.66s var(--bounce);
