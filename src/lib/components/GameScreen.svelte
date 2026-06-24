@@ -939,7 +939,15 @@
         {#if chain && chainPts.length}
           <polyline points={chainPts.map((p) => `${p.x},${p.y}`).join(' ')} class="rope" />
           {#each chainPts as p, i (i)}
-            <circle cx={p.x} cy={p.y} r={i === chainPts.length - 1 ? 8 : 3} class="bead" class:handle={i === chainPts.length - 1} />
+            {@const isHandle = i === chainPts.length - 1}
+            <circle
+              cx={p.x}
+              cy={p.y}
+              r={isHandle ? 8 : 3}
+              class="bead"
+              class:handle={isHandle}
+              style:color={isHandle ? KEY_COLORS[chain.keyId] : null}
+            />
           {/each}
           {@const h = chainPts[chainPts.length - 1]}
           <circle cx={h.x} cy={h.y} r="18" class="grab" onpointerdown={startHandleGrab} role="button" tabindex="-1" aria-label="chain end" />
@@ -1231,10 +1239,13 @@
   .bead {
     fill: #d8d2bd;
   }
+  /* the dangling handle takes the key's colour (set inline); a dark rim + glow
+     read against any hue */
   .bead.handle {
-    fill: url(#brassLit);
-    stroke: #8a6320;
+    fill: currentColor;
+    stroke: rgba(0, 0, 0, 0.45);
     stroke-width: 1.4;
+    filter: drop-shadow(0 0 5px color-mix(in srgb, currentColor 70%, transparent));
   }
   .grab {
     fill: transparent;
