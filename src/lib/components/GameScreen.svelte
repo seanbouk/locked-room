@@ -610,8 +610,12 @@
     endChain();
     preview = null;
     if (newIds.length) {
+      // Colour EVERY node this key acts on, not just the one it newly solved — a
+      // two-part key opens both its nodes, so the light from both glows its
+      // colour (until the round-end whitening), even if the partner was already
+      // known. The latest key to act on a node owns its colour.
       const sb = new Map(solvedBy);
-      for (const id of newIds) sb.set(id, p.keyId);
+      for (const id of p.angleIds) sb.set(id, p.keyId);
       solvedBy = sb;
       flash = new Set(newIds);
       setTimeout(() => (flash = new Set()), 900);
