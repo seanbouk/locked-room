@@ -174,8 +174,8 @@
     const r = drawn.circle.r;
     const rect =
       side === 'L'
-        ? `M -125 -175 L ${-SEAM} -175 L ${-SEAM} 375 L -125 375 Z`
-        : `M ${SEAM} -175 L 125 -175 L 125 375 L ${SEAM} 375 Z`;
+        ? `M -186 -196 L ${-SEAM} -196 L ${-SEAM} 300 L -186 300 Z`
+        : `M ${SEAM} -196 L 186 -196 L 186 300 L ${SEAM} 300 Z`;
     const disc = ` M ${r} 0 A ${r} ${r} 0 1 1 ${-r} 0 A ${r} ${r} 0 1 1 ${r} 0 Z`;
     return rect + disc;
   };
@@ -191,7 +191,7 @@
   // from the centre, and tints them warm. The result is screen-blended over the
   // SVG, so the resting state (only hairline kerfs) reads exactly as before, and
   // every recede / open / door-swing widens the apertures and blooms the light.
-  const VB = { x: -125, y: -175, w: 250, h: 550 }; // = drawn.viewBox
+  const VB = { x: -186, y: -196, w: 372, h: 496 }; // = drawn.viewBox
   let glCanvas = $state<HTMLCanvasElement>();
   let apDbg = $state<HTMLCanvasElement>(); // debug: shows the raw aperture mask
   let debugAp = $state(false);
@@ -326,7 +326,7 @@
       apCtx.save();
       apCtx.setTransform(m.a, m.b, m.c, m.d, m.e, m.f);
       const clip = new Path2D();
-      clip.rect(side === 'L' ? -125 : SEAM, -175, 125 - SEAM, 550);
+      clip.rect(side === 'L' ? -186 : SEAM, -196, 186 - SEAM, 496);
       apCtx.clip(clip);
       apCtx.fillStyle = '#000';
       apCtx.fill(new Path2D(d), 'evenodd');
@@ -852,12 +852,12 @@
           </clipPath>
           <!-- each door is clipped to its own half so the evenodd hole can't
                spill filled steel across into the other half (behind the lock) -->
-          <clipPath id="doorClipL"><rect x="-125" y="-175" width="124.4" height="550" /></clipPath>
-          <clipPath id="doorClipR"><rect x="0.6" y="-175" width="124.4" height="550" /></clipPath>
+          <clipPath id="doorClipL"><rect x="-186" y="-196" width="185.4" height="496" /></clipPath>
+          <clipPath id="doorClipR"><rect x="0.6" y="-196" width="185.4" height="496" /></clipPath>
           <!-- the inner vignette is masked out of the pin circles so a pin near
                the rim reads flat -->
           <mask id="shadeMask">
-            <rect x="-125" y="-175" width="250" height="550" fill="white" />
+            <rect x="-186" y="-196" width="372" height="496" fill="white" />
             {#each drawn.angles as a (a.id)}
               <circle cx={a.vx} cy={a.vy} r={PIN_R} fill="black" />
             {/each}
@@ -865,8 +865,8 @@
           <!-- holes bored in the lock face at every pin, so the pins (rendered
                behind the face) show through and the face occludes them as they
                recede -->
-          <mask id="plateHoles" maskUnits="userSpaceOnUse" x="-125" y="-175" width="250" height="550">
-            <rect x="-125" y="-175" width="250" height="550" fill="white" />
+          <mask id="plateHoles" maskUnits="userSpaceOnUse" x="-186" y="-196" width="372" height="496">
+            <rect x="-186" y="-196" width="372" height="496" fill="white" />
             {#each drawn.angles as a (a.id)}
               <circle cx={a.vx} cy={a.vy} r={PIN_R} fill="black" />
             {/each}
@@ -875,7 +875,7 @@
 
         <!-- the dark depth behind the doors, revealed through the lock hole and
              through the seam, and when the doors swing open at the end -->
-        <rect x="-125" y="-175" width="250" height="550" class="door-void" />
+        <rect x="-186" y="-196" width="372" height="496" class="door-void" />
 
         <!-- the two doors as real beveled pieces (board half minus the lock
              outline). They swing open toward the viewer (3D rotateY about their
@@ -1058,6 +1058,9 @@
         </div>
       </div>
 
+      <!-- music player goes here — placeholder for now -->
+      <div class="dock"><span>music player</span></div>
+
   {#if toast}<div class="toast">{toast}</div>{/if}
 
   <!-- white flash: full on entry (fades in the level from white) and at the end
@@ -1070,17 +1073,22 @@
 </div>
 
 <style>
-  /* the play area is a tall 1:2.2 panel filling the screen, flush to the top */
+  /* The play area is a 3:4 portrait panel pegged to its WIDTH (960 max), so it
+     scales as one unit on any host and itch can fit it to a fixed width. Capped
+     to the viewport height too, so it never overflows a short frame. It's a query
+     container: every HUD size below is in cqw (% of this panel's width), so the
+     text, buttons and key tray always fill the same fraction at any scale. */
   .screen {
     position: relative;
-    height: 100dvh;
-    aspect-ratio: 250 / 550;
-    max-width: 100vw;
+    width: min(100%, 960px, calc(100dvh * 372 / 496));
+    aspect-ratio: 372 / 496;
     margin: 0 auto;
     overflow: hidden;
+    background: #14171d;
     color: #e8edf7;
     user-select: none;
     touch-action: none;
+    container-type: inline-size;
   }
   .screen.shake {
     animation: shake 0.26s;
@@ -1114,24 +1122,24 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    gap: 0.5rem;
-    padding: 0.7rem 0.85rem 1.4rem;
+    gap: 1.5cqw;
+    padding: 2.4cqw 2.6cqw 5cqw;
     pointer-events: none;
     background: linear-gradient(to bottom, rgba(8, 12, 20, 0.6), rgba(8, 12, 20, 0));
   }
   .titles {
     display: flex;
     flex-direction: column;
-    gap: 0.1rem;
+    gap: 0.4cqw;
   }
   .room-line {
-    font-size: 0.9rem;
+    font-size: 2.5cqw;
     letter-spacing: 0.02em;
   }
   .intro {
-    font-size: 0.78rem;
+    font-size: 2.1cqw;
     opacity: 0.72;
-    max-width: 32ch;
+    max-width: 34ch;
   }
   .rooms-btn {
     pointer-events: auto;
@@ -1139,32 +1147,52 @@
     background: rgba(20, 28, 44, 0.7);
     border: 1px solid #3a4a73;
     color: #dce4f5;
-    border-radius: 8px;
-    padding: 0.3rem 0.55rem;
+    border-radius: 1.2cqw;
+    padding: 1cqw 1.6cqw;
     cursor: pointer;
-    font-size: 0.95rem;
+    font-size: 2.7cqw;
+    line-height: 1;
   }
   .rooms-btn:hover {
     border-color: #ffe07a;
   }
-  /* sits just below the lock (which bottoms out at ~50% of the tall board) so
-     the game clusters near the top; steel + seam carry on down behind it */
+  /* the key cluster sits just below the disc (which bottoms out at ~60% of the
+     portrait panel); the music dock sits below it. Steel fills the panel behind. */
   .hud-bottom {
     position: absolute;
-    top: 51%;
+    top: 61%;
     left: 0;
     right: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.55rem;
-    padding: 0.5rem 0.8rem;
+    gap: 1.4cqw;
+    padding: 1cqw 2cqw;
     pointer-events: none;
   }
   .hud-bottom .prompt,
   .hud-bottom .tray,
   .hud-bottom .cancel {
     pointer-events: auto;
+  }
+  /* music player placeholder — a green-stroke rectangle in the band below the
+     keys, sized as a fraction of the panel so it scales with everything else */
+  .dock {
+    position: absolute;
+    left: 7%;
+    right: 7%;
+    bottom: 4%;
+    height: 15%;
+    border: 0.35cqw solid #00ad8e;
+    border-radius: 2cqw;
+    display: grid;
+    place-items: center;
+    pointer-events: auto;
+    color: rgba(0, 173, 142, 0.85);
+    font-family: ui-monospace, Consolas, monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.25em;
+    font-size: 2cqw;
   }
 
   /* sliced-plate pieces: the dark void behind the gaps, the steel tiles, and
@@ -1303,8 +1331,8 @@
 
   .prompt {
     text-align: center;
-    font-size: 0.85rem;
-    min-height: 1.2rem;
+    font-size: 2cqw;
+    min-height: 2.8cqw;
     color: #1c222c;
     font-weight: 600;
     text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
@@ -1313,27 +1341,27 @@
     opacity: 0.4;
   }
   .cancel {
-    margin-left: 0.5rem;
+    margin-left: 1cqw;
     background: none;
     border: none;
     color: #ff9b9b;
     cursor: pointer;
-    font-size: 0.8rem;
+    font-size: 1.9cqw;
   }
 
   .tray {
     display: flex;
-    gap: 0.55rem;
+    gap: 1.4cqw;
     flex-wrap: wrap;
     justify-content: center;
   }
   .key {
     position: relative;
-    width: 54px;
-    height: 54px;
+    width: 9.5cqw;
+    height: 9.5cqw;
     display: grid;
     place-items: center;
-    border-radius: 9px;
+    border-radius: 1.6cqw;
     border: 1px solid #474e5c;
     background: linear-gradient(160deg, #2c333f, #1b212b);
     cursor: grab;
@@ -1350,7 +1378,7 @@
   }
   /* the skeleton key icon is its own colour; the tray just sizes it */
   .key :global(.ki) {
-    width: 42px;
+    width: 7cqw;
   }
   .key.locked {
     cursor: not-allowed;
@@ -1369,9 +1397,9 @@
   }
   .lock-badge {
     position: absolute;
-    right: 2px;
-    bottom: 1px;
-    font-size: 0.7rem;
+    right: 0.4cqw;
+    bottom: 0.2cqw;
+    font-size: 2cqw;
     filter: grayscale(0.4);
   }
 
@@ -1383,12 +1411,12 @@
     z-index: 50;
   }
   .ghost :global(.ki) {
-    width: 52px;
+    width: 8.5cqw;
   }
 
   .toast {
     position: absolute;
-    bottom: 5.5rem;
+    bottom: 22%;
     left: 50%;
     transform: translateX(-50%);
     background: #10182b;

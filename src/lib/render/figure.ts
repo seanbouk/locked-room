@@ -512,11 +512,11 @@ export function drawPuzzle(p: Puzzle): Drawn {
   });
 
   return {
-    // r=100 circle in a 250-wide box => the lock fills ~80% of the board width.
-    // The box is 1:2.2 (tall) and the lock sits in the UPPER third (0,0 is 175
-    // down from the top); the brushed steel + seam carry on down to fill the
-    // screen, so the whole game clusters near the top.
-    viewBox: '-125 -175 250 550',
+    // r=100 circle in a 372-wide box => the lock fills ~54% of the board width.
+    // The box is a 3:4 portrait panel: a title band above the disc (centre at
+    // 0,0), then the disc, then ~516u below it for the key tray + the music dock.
+    // The brushed steel + seam fill the whole panel behind the HUD.
+    viewBox: '-186 -196 372 496',
     circle: { cx, cy, r: c.r },
     faces: drawnFaces(p),
     segments,

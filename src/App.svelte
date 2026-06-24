@@ -122,7 +122,8 @@
   main {
     min-height: 100dvh;
     display: grid;
-    place-items: start center;
+    place-items: center;
+    padding: 0;
   }
 
   .modal-bg {
