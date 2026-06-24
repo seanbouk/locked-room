@@ -207,7 +207,7 @@
   // "stage + ms into that stage" — independent of how long earlier stages (e.g.
   // the variable-length drop cascade) took. So "doors +650ms" maps straight to
   // 650ms into the door swing. Reads "<phase> +<ms>ms · f<frame>". Toggle 'f'.
-  let showCounter = $state(true);
+  let showCounter = $state(false); // hidden; press 'f' to show for recording
   let frameNo = $state(0);
   let clockMs = $state(0);
   let phaseStartT = 0;
@@ -1454,6 +1454,14 @@
   }
   .whiteout.on {
     opacity: 1;
+  }
+  /* intro: the room opens ALREADY white (no ramp-in) and a plain, fully opaque
+     white, then fades out to the board — so the split-second intro is solid
+     white, never the grey board flashing through a half-faded overlay. */
+  .screen.intro .whiteout {
+    background: #fff;
+    opacity: 1;
+    transition: none;
   }
   /* on the flash, ramp in fast and hard */
   .screen.flash .whiteout {
