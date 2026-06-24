@@ -1,11 +1,11 @@
 <script lang="ts">
-  // Music dock — a small carousel of OPTIONAL players below the puzzle.
+  // Music dock — a carousel of OPTIONAL players below the puzzle. Every service
+  // fills ONE fixed glass box (same size for all), with a chip row beneath.
   //
-  // Silence by default (None): mostly transparent, so its look matches the quiet.
-  // Nothing is pushed. Pick a service and its player loads; switching unloads the
-  // previous one — which is also the only reliable way to "mute" a cross-origin
-  // embed (you can't pause someone else's iframe from script). Leads with the
-  // free, no-login indie option (SomaFM); Spotify / YouTube are "bring your own".
+  // Silence (None) by default — a quiet empty glass panel, nothing pushed. Picking
+  // a service loads its player; switching unloads the previous one (the only
+  // reliable way to "mute" a cross-origin embed). Leads with the free, no-login
+  // indie option (SomaFM); Spotify / YouTube are "bring your own".
   //
   // Lives in App (outside GameScreen's per-room {#key} remount) so playback
   // carries across rooms.
@@ -21,11 +21,13 @@
     { name: 'Beat Blender', desc: 'late-night downtempo beats', url: 'https://ice5.somafm.com/beatblender-128-mp3', alt: 'https://ice3.somafm.com/beatblender-128-mp3' },
     { name: 'Groove Salad', desc: 'chilled ambient · downtempo', url: 'https://ice5.somafm.com/groovesalad-128-mp3', alt: 'https://ice3.somafm.com/groovesalad-128-mp3' },
   ];
-  // Recommended lofi sources (swap freely). Spotify: full playback for logged-in
-  // Premium, 30s previews otherwise. YouTube: a lofi PLAYLIST embed — durable,
-  // unlike a live-stream/video id (the iconic jfKfPfyJRdk was pulled May 2026).
+  // Recommended lofi sources (swap freely). Spotify: full playback only if the
+  // viewer is logged into Spotify in this browser (no in-embed login exists);
+  // others get 30s previews. YouTube: a lofi PLAYLIST embed (durable, unlike a
+  // live-stream/video id) on the nocookie host. It is a VIDEO player — YouTube
+  // Music has no embeddable player.
   const SPOTIFY = 'https://open.spotify.com/embed/playlist/0vvXsWCC9xrXsKd4FyS8kM?theme=0';
-  const YOUTUBE = 'https://www.youtube.com/embed/videoseries?list=PLyORnIW1xT6xL7lVBSCsEoI0NPlpcwzj2';
+  const YOUTUBE = 'https://www.youtube-nocookie.com/embed/videoseries?list=PLyORnIW1xT6xL7lVBSCsEoI0NPlpcwzj2&rel=0';
 
   const KEY = 'locked-room/music/v1';
   let service = $state<Service>('none');
@@ -33,15 +35,15 @@
   let playing = $state(false);
   let audio = $state<HTMLAudioElement>();
 
+  const wrap = (i: number) => ((i % STATIONS.length) + STATIONS.length) % STATIONS.length;
   onMount(() => {
     try {
       const s = JSON.parse(localStorage.getItem(KEY) || '{}');
-      if (typeof s.station === 'number') stationIdx = ((s.station % STATIONS.length) + STATIONS.length) % STATIONS.length;
+      if (typeof s.station === 'number') stationIdx = wrap(s.station);
     } catch {
       /* ignore */
     }
-    // Start silent on load — the room opens quiet, and browsers block autoplay
-    // anyway, so we never restore a "playing" service.
+    // start silent — browsers block autoplay and the room should open quiet.
   });
   const persist = () => {
     try { localStorage.setItem(KEY, JSON.stringify({ station: stationIdx })); } catch { /* ignore */ }
@@ -56,23 +58,31 @@
     service = next;
   }
 
-  function toggleRadio() {
+  // Radio playback is fully IMPERATIVE (no reactive src attr) — binding src to
+  // stationIdx made the browser reset the element on a switch and drop playback.
+  function radioSrc() {
+    return STATIONS[stationIdx].url;
+  }
+  function togglePlay() {
     if (!audio) return;
     if (playing) audio.pause();
-    else audio.play().catch(() => (playing = false));
-  }
-  function setStation(i: number) {
-    stationIdx = ((i % STATIONS.length) + STATIONS.length) % STATIONS.length;
-    persist();
-    if (audio && playing) {
-      audio.load();
+    else {
+      if (!audio.src) audio.src = radioSrc();
       audio.play().catch(() => {});
     }
   }
+  function cycle(dir: number) {
+    stationIdx = wrap(stationIdx + dir);
+    persist();
+    if (!audio) return;
+    const wasPlaying = playing;
+    audio.src = radioSrc();
+    audio.load();
+    if (wasPlaying) audio.play().catch(() => {}); // keep playing across the switch
+  }
   function onAudioError() {
-    // primary mirror failed — fall back to the alternate host once
     if (audio && audio.src === STATIONS[stationIdx].url) {
-      audio.src = STATIONS[stationIdx].alt;
+      audio.src = STATIONS[stationIdx].alt; // fall back to the other mirror once
       audio.load();
       if (playing) audio.play().catch(() => {});
     }
@@ -87,55 +97,53 @@
   ];
 </script>
 
-<div class="dock" class:silent={service === 'none'} data-svc={service}>
-  {#if service !== 'none'}
-    <div class="surface">
-      {#if service === 'radio'}
-        <div class="radio">
-          <button class="play" onclick={toggleRadio} aria-label={playing ? 'Pause' : 'Play'}>
-            {playing ? '❚❚' : '▶'}
-          </button>
-          <div class="now">
-            <span class="st-name">{STATIONS[stationIdx].name}</span>
-            <span class="st-desc">{STATIONS[stationIdx].desc} · SomaFM</span>
-          </div>
-          <div class="st-nav">
-            <button onclick={() => setStation(stationIdx - 1)} aria-label="Previous station">‹</button>
-            <button onclick={() => setStation(stationIdx + 1)} aria-label="Next station">›</button>
-          </div>
-          <!-- svelte-ignore a11y_media_has_caption -->
-          <audio
-            bind:this={audio}
-            src={STATIONS[stationIdx].url}
-            preload="none"
-            onerror={onAudioError}
-            onplaying={() => (playing = true)}
-            onpause={() => (playing = false)}
-          ></audio>
+<div class="dock">
+  <!-- one fixed glass box; every service fills it identically -->
+  <div class="surface" data-svc={service}>
+    {#if service === 'radio'}
+      <div class="radio">
+        <button class="ctl play" onclick={togglePlay} aria-label={playing ? 'Pause' : 'Play'}>
+          {playing ? '❚❚' : '▶'}
+        </button>
+        <div class="now">
+          <span class="st-name">{STATIONS[stationIdx].name}</span>
+          <span class="st-desc">{STATIONS[stationIdx].desc} · SomaFM</span>
         </div>
-      {:else if service === 'spotify'}
+        <button class="ctl" onclick={() => cycle(-1)} aria-label="Previous station">‹</button>
+        <button class="ctl" onclick={() => cycle(1)} aria-label="Next station">›</button>
+        <!-- svelte-ignore a11y_media_has_caption -->
+        <audio
+          bind:this={audio}
+          preload="none"
+          onerror={onAudioError}
+          onplaying={() => (playing = true)}
+          onpause={() => (playing = false)}
+        ></audio>
+      </div>
+    {:else if service === 'spotify'}
+      <iframe
+        class="fill"
+        title="Spotify player"
+        src={SPOTIFY}
+        allow="encrypted-media; autoplay; clipboard-write; fullscreen; picture-in-picture"
+        loading="lazy"
+      ></iframe>
+    {:else if service === 'youtube'}
+      <div class="yt">
         <iframe
-          class="emb spotify"
-          title="Spotify player"
-          src={SPOTIFY}
-          allow="encrypted-media; autoplay; clipboard-write; fullscreen; picture-in-picture"
+          title="YouTube lofi radio"
+          src={YOUTUBE}
+          allow="autoplay; encrypted-media; picture-in-picture"
           loading="lazy"
+          allowfullscreen
         ></iframe>
-      {:else if service === 'youtube'}
-        <div class="yt">
-          <iframe
-            title="YouTube lofi radio"
-            src={YOUTUBE}
-            allow="autoplay; encrypted-media; picture-in-picture"
-            loading="lazy"
-            allowfullscreen
-          ></iframe>
-        </div>
-      {:else if service === 'local'}
-        <div class="local">Local tracks — coming soon</div>
-      {/if}
-    </div>
-  {/if}
+      </div>
+    {:else if service === 'local'}
+      <div class="empty">Local tracks — coming soon</div>
+    {:else}
+      <div class="empty muted" aria-hidden="true">🔇</div>
+    {/if}
+  </div>
 
   <div class="chips" role="tablist" aria-label="Music player">
     {#each CHIPS as c (c.id)}
@@ -163,53 +171,99 @@
     z-index: 5;
     display: flex;
     flex-direction: column;
-    align-items: stretch;
     gap: 1.4cqw;
     pointer-events: auto;
-    transition: opacity 0.25s ease;
-  }
-  /* Silence: mostly transparent, just a faint chip row — its look matches the
-     quiet. It wakes up on hover/focus so it's still discoverable. */
-  .dock.silent {
-    opacity: 0.4;
-  }
-  .dock.silent:hover,
-  .dock.silent:focus-within {
-    opacity: 1;
   }
 
+  /* the one shared box — same size for every service. Glass: translucent, a
+     hairline edge, a little blur. Quiet, not busy. */
   .surface {
-    background: linear-gradient(180deg, rgba(20, 24, 31, 0.92), rgba(12, 15, 20, 0.92));
-    border: 1px solid #2a2f3a;
+    position: relative;
+    width: 100%;
+    height: 16cqw;
+    min-height: 120px;
     border-radius: 2cqw;
-    padding: 1.6cqw;
-    box-shadow: 0 1.5cqw 4cqw -2cqw #000;
-    backdrop-filter: blur(2px);
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.045);
+    border: 1px solid rgba(255, 255, 255, 0.11);
+    backdrop-filter: blur(7px);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 1.5cqw 4cqw -2cqw #000;
   }
 
-  /* ── SomaFM radio: our own minimal transport over an <audio> tag ── */
+  /* players fill the box */
+  .fill {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+  .yt {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+  }
+  .yt iframe {
+    height: 100%;
+    aspect-ratio: 16 / 9;
+    max-width: 100%;
+    border: 0;
+  }
+  .empty {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: #8b94a3;
+    font-family: ui-monospace, Consolas, monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    font-size: 1.9cqw;
+  }
+  .empty.muted {
+    font-size: 4.5cqw;
+    opacity: 0.22;
+    filter: grayscale(1);
+  }
+
+  /* ── SomaFM transport: uniform compact icon buttons, station name between ── */
   .radio {
+    position: absolute;
+    inset: 0;
     display: flex;
     align-items: center;
     gap: 1.6cqw;
+    padding: 0 2.2cqw;
   }
-  .play {
+  .ctl {
     flex: none;
-    width: 9cqw;
-    height: 9cqw;
-    border-radius: 50%;
-    border: none;
-    background: #00ad8e;
-    color: #04130f;
-    font-size: 3.2cqw;
-    line-height: 1;
-    cursor: pointer;
+    width: 7.5cqw;
+    height: 7.5cqw;
     display: grid;
     place-items: center;
-    box-shadow: 0 0 3cqw rgba(0, 173, 142, 0.5);
+    border-radius: 1.5cqw;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.05);
+    color: #ccd3df;
+    font-size: 3cqw;
+    line-height: 1;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
   }
-  .play:hover {
+  .ctl:hover {
+    border-color: #00ad8e;
+    color: #fff;
+  }
+  .ctl.play {
+    color: #04130f;
+    background: #00ad8e;
+    border-color: transparent;
+    font-size: 2.6cqw;
+  }
+  .ctl.play:hover {
     filter: brightness(1.12);
+    color: #04130f;
   }
   .now {
     flex: 1;
@@ -230,56 +284,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .st-nav {
-    flex: none;
-    display: flex;
-    gap: 0.8cqw;
-  }
-  .st-nav button {
-    width: 6cqw;
-    height: 6cqw;
-    border-radius: 1.2cqw;
-    border: 1px solid #2a2f3a;
-    background: rgba(255, 255, 255, 0.04);
-    color: #ccd3df;
-    font-size: 3cqw;
-    line-height: 1;
-    cursor: pointer;
-  }
-  .st-nav button:hover {
-    border-color: #00ad8e;
-    color: #fff;
-  }
-
-  /* ── embeds ── */
-  .emb.spotify {
-    display: block;
-    width: 100%;
-    height: 15cqw;
-    min-height: 80px;
-    border: 0;
-    border-radius: 1.5cqw;
-  }
-  .yt {
-    width: 46cqw;
-    margin: 0 auto;
-  }
-  .yt iframe {
-    display: block;
-    width: 100%;
-    aspect-ratio: 16 / 9;
-    border: 0;
-    border-radius: 1.5cqw;
-  }
-  .local {
-    text-align: center;
-    color: #8b94a3;
-    font-family: ui-monospace, Consolas, monospace;
-    text-transform: uppercase;
-    letter-spacing: 0.2em;
-    font-size: 2cqw;
-    padding: 3cqw 0;
-  }
 
   /* ── chip carousel ── */
   .chips {
@@ -293,14 +297,15 @@
     display: inline-flex;
     align-items: center;
     gap: 0.7cqw;
-    border: 1px solid #2a2f3a;
-    background: rgba(20, 24, 31, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(20, 24, 31, 0.55);
     color: #aab2c0;
     border-radius: 99px;
     padding: 0.9cqw 1.6cqw;
     font-size: 2cqw;
     line-height: 1;
     cursor: pointer;
+    backdrop-filter: blur(4px);
     transition: color 0.15s, border-color 0.15s, background 0.15s;
   }
   .chip .glyph {
@@ -309,23 +314,13 @@
   .chip:hover {
     color: #e8edf7;
   }
-  /* in silence the chips are bare (no pill) so the row reads as a quiet hint */
-  .dock.silent .chip {
-    background: transparent;
-    border-color: transparent;
-  }
-  /* active chip lights in its service's colour */
   .chip.on {
     color: #fff;
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.08);
   }
   .chip.radio.on { border-color: #00ad8e; box-shadow: 0 0 0 1px #00ad8e; }
   .chip.spotify.on { border-color: #1db954; box-shadow: 0 0 0 1px #1db954; }
   .chip.youtube.on { border-color: #ff4d4d; box-shadow: 0 0 0 1px #ff4d4d; }
   .chip.local.on { border-color: #c8923f; box-shadow: 0 0 0 1px #c8923f; }
   .chip.none.on { border-color: #5b636e; }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dock { transition: none; }
-  }
 </style>
