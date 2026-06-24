@@ -29,7 +29,13 @@
   // live-stream/video id) on the nocookie host. It is a VIDEO player — YouTube
   // Music has no embeddable player.
   const SPOTIFY = 'https://open.spotify.com/embed/playlist/0vvXsWCC9xrXsKd4FyS8kM?theme=0';
-  const YOUTUBE = 'https://www.youtube-nocookie.com/embed/videoseries?list=PLyORnIW1xT6xL7lVBSCsEoI0NPlpcwzj2&rel=0';
+  // YouTube: the actual embed is the left of the box; these buttons (right) swap
+  // which playlist it loads. Swap/extend freely — drop in your own list IDs.
+  const YT_PLAYLISTS = [
+    { name: 'Lofi mix', id: 'PLyORnIW1xT6xL7lVBSCsEoI0NPlpcwzj2' },
+    { name: 'Chillhop', id: 'PLt7bG0K25iXi9KIt6P6yStMp9ObzXjApm' },
+    { name: 'Essentials', id: 'PLt7bG0K25iXjvB28Upp4YU_LvLS2MFbLr' },
+  ];
 
   const KEY = 'locked-room/music/v1';
   let service = $state<Service>('none');
@@ -38,20 +44,29 @@
   let audio = $state<HTMLAudioElement>();
   let boxW = $state(0); // surface width, for the slide distance
   let dir = $state(1); // slide direction: +1 = new enters from the right
+  let ytIdx = $state(0); // selected YouTube playlist
+  const ytSrc = $derived(
+    `https://www.youtube-nocookie.com/embed/videoseries?list=${YT_PLAYLISTS[ytIdx].id}&rel=0`,
+  );
 
   const wrap = (i: number) => ((i % STATIONS.length) + STATIONS.length) % STATIONS.length;
   onMount(() => {
     try {
       const s = JSON.parse(localStorage.getItem(KEY) || '{}');
       if (typeof s.station === 'number') stationIdx = wrap(s.station);
+      if (typeof s.yt === 'number' && s.yt >= 0 && s.yt < YT_PLAYLISTS.length) ytIdx = s.yt;
     } catch {
       /* ignore */
     }
     // start silent — browsers block autoplay and the room should open quiet.
   });
   const persist = () => {
-    try { localStorage.setItem(KEY, JSON.stringify({ station: stationIdx })); } catch { /* ignore */ }
+    try { localStorage.setItem(KEY, JSON.stringify({ station: stationIdx, yt: ytIdx })); } catch { /* ignore */ }
   };
+  function selectYt(i: number) {
+    ytIdx = i;
+    persist();
+  }
 
   const idxOf = (s: Service) => CHIPS.findIndex((c) => c.id === s);
   function pick(s: Service) {
@@ -95,12 +110,12 @@
     }
   }
 
-  const CHIPS: { id: Service; label: string; glyph: string }[] = [
-    { id: 'none', label: 'Silence', glyph: '🔇' },
-    { id: 'radio', label: 'SomaFM radio', glyph: '📻' },
-    { id: 'spotify', label: 'Spotify', glyph: '♫' },
-    { id: 'youtube', label: 'YouTube', glyph: '▶' },
-    { id: 'local', label: 'Local (soon)', glyph: '🎵' },
+  const CHIPS: { id: Service; label: string }[] = [
+    { id: 'none', label: 'Silence' },
+    { id: 'radio', label: 'SomaFM radio' },
+    { id: 'spotify', label: 'Spotify' },
+    { id: 'youtube', label: 'YouTube' },
+    { id: 'local', label: 'Local (soon)' },
   ];
 </script>
 
@@ -144,13 +159,22 @@
           ></iframe>
         {:else if service === 'youtube'}
           <div class="yt">
-            <iframe
-              title="YouTube lofi radio"
-              src={YOUTUBE}
-              allow="autoplay; encrypted-media; picture-in-picture"
-              loading="lazy"
-              allowfullscreen
-            ></iframe>
+            <div class="yt-player">
+              <iframe
+                title="YouTube lofi radio"
+                src={ytSrc}
+                allow="autoplay; encrypted-media; picture-in-picture"
+                loading="lazy"
+                allowfullscreen
+              ></iframe>
+            </div>
+            <div class="yt-lists">
+              {#each YT_PLAYLISTS as pl, i (pl.id)}
+                <button class="yt-list" class:on={i === ytIdx} onclick={() => selectYt(i)}>
+                  {pl.name}
+                </button>
+              {/each}
+            </div>
           </div>
         {:else if service === 'local'}
           <div class="empty">Local tracks — coming soon</div>
@@ -169,14 +193,41 @@
         role="tab"
         aria-selected={service === c.id}
         title={c.label}
+        aria-label={c.label}
         onclick={() => pick(c.id)}
       >
-        <span class="glyph">{c.glyph}</span>
-        {#if c.id !== 'none' && c.id !== 'local'}<span class="txt">{c.label}</span>{/if}
+        {@render chipIcon(c.id)}
       </button>
     {/each}
   </div>
 </div>
+
+{#snippet chipIcon(id: Service)}
+  <svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    {#if id === 'none'}
+      <path d="M4 9 H7 L12 5 V19 L7 15 H4 Z" fill="currentColor" stroke="none" />
+      <line x1="16" y1="9.5" x2="21" y2="14.5" />
+      <line x1="21" y1="9.5" x2="16" y2="14.5" />
+    {:else if id === 'radio'}
+      <path d="M15 7 L20 4" />
+      <rect x="3" y="7" width="18" height="12" rx="2" />
+      <circle cx="8" cy="13.5" r="2.4" />
+      <line x1="13.5" y1="11.5" x2="18" y2="11.5" />
+      <line x1="13.5" y1="15" x2="18" y2="15" />
+    {:else if id === 'spotify'}
+      <circle cx="12" cy="12" r="9" />
+      <path d="M7.4 9.6 q4.8 -1.3 9 0.9" />
+      <path d="M8 12.8 q4 -1 7 0.8" />
+      <path d="M8.6 15.8 q3 -0.7 5 0.5" />
+    {:else if id === 'youtube'}
+      <rect x="2" y="6" width="20" height="12" rx="3.5" />
+      <path d="M10 9.2 L15 12 L10 14.8 Z" fill="currentColor" stroke="none" />
+    {:else if id === 'local'}
+      <circle cx="7.5" cy="17" r="2.4" fill="currentColor" stroke="none" />
+      <path d="M9.9 17 V6 L18 4 V8" />
+    {/if}
+  </svg>
+{/snippet}
 
 <style>
   .dock {
@@ -221,17 +272,55 @@
     height: 100%;
     border: 0;
   }
+  /* YouTube: the embed is the LEFT of the box; playlist buttons fill the right */
   .yt {
     position: absolute;
     inset: 0;
-    display: grid;
-    place-items: center;
+    display: flex;
+    gap: 1.4cqw;
+    padding: 1.4cqw;
   }
-  .yt iframe {
+  .yt-player {
+    flex: 0 0 auto;
     height: 100%;
     aspect-ratio: 16 / 9;
-    max-width: 100%;
+    border-radius: 1.2cqw;
+    overflow: hidden;
+    background: #000;
+  }
+  .yt-player iframe {
+    display: block;
+    width: 100%;
+    height: 100%;
     border: 0;
+  }
+  .yt-lists {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.9cqw;
+    align-content: center;
+    min-width: 0;
+  }
+  .yt-list {
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.05);
+    color: #ccd3df;
+    border-radius: 1.2cqw;
+    padding: 1.1cqw 1cqw;
+    font-size: 1.8cqw;
+    line-height: 1.1;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+  }
+  .yt-list:hover {
+    border-color: #ff4d4d;
+    color: #fff;
+  }
+  .yt-list.on {
+    border-color: #ff4d4d;
+    color: #fff;
+    background: rgba(255, 77, 77, 0.14);
   }
   .empty {
     position: absolute;
@@ -316,34 +405,36 @@
     gap: 1.2cqw;
     flex-wrap: wrap;
   }
+  /* icon-only chips, all the same square so the row is even */
   .chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.7cqw;
+    flex: none;
+    width: 8.2cqw;
+    height: 8.2cqw;
+    display: grid;
+    place-items: center;
     border: 1px solid rgba(255, 255, 255, 0.12);
     background: rgba(20, 24, 31, 0.55);
     color: #aab2c0;
-    border-radius: 99px;
-    padding: 0.9cqw 1.6cqw;
-    font-size: 2cqw;
-    line-height: 1;
+    border-radius: 2cqw;
     cursor: pointer;
     backdrop-filter: blur(4px);
     transition: color 0.15s, border-color 0.15s, background 0.15s;
   }
-  .chip .glyph {
-    font-size: 2.2cqw;
+  .ci {
+    width: 4.6cqw;
+    height: 4.6cqw;
+    display: block;
   }
   .chip:hover {
     color: #e8edf7;
+    border-color: rgba(255, 255, 255, 0.28);
   }
   .chip.on {
-    color: #fff;
     background: rgba(255, 255, 255, 0.08);
   }
-  .chip.radio.on { border-color: #00ad8e; box-shadow: 0 0 0 1px #00ad8e; }
-  .chip.spotify.on { border-color: #1db954; box-shadow: 0 0 0 1px #1db954; }
-  .chip.youtube.on { border-color: #ff4d4d; box-shadow: 0 0 0 1px #ff4d4d; }
-  .chip.local.on { border-color: #c8923f; box-shadow: 0 0 0 1px #c8923f; }
-  .chip.none.on { border-color: #5b636e; }
+  .chip.radio.on { color: #14d6b4; border-color: #00ad8e; box-shadow: 0 0 0 1px #00ad8e; }
+  .chip.spotify.on { color: #1ed760; border-color: #1db954; box-shadow: 0 0 0 1px #1db954; }
+  .chip.youtube.on { color: #ff5c5c; border-color: #ff4d4d; box-shadow: 0 0 0 1px #ff4d4d; }
+  .chip.local.on { color: #e6b65a; border-color: #c8923f; box-shadow: 0 0 0 1px #c8923f; }
+  .chip.none.on { color: #cdd4df; border-color: #5b636e; }
 </style>
