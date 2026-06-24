@@ -10,6 +10,8 @@
   // Lives in App (outside GameScreen's per-room {#key} remount) so playback
   // carries across rooms.
   import { onMount } from 'svelte';
+  import { fly } from 'svelte/transition';
+  import { cubicOut } from 'svelte/easing';
 
   type Service = 'none' | 'radio' | 'spotify' | 'youtube' | 'local';
 
@@ -34,6 +36,8 @@
   let stationIdx = $state(0);
   let playing = $state(false);
   let audio = $state<HTMLAudioElement>();
+  let boxW = $state(0); // surface width, for the slide distance
+  let dir = $state(1); // slide direction: +1 = new enters from the right
 
   const wrap = (i: number) => ((i % STATIONS.length) + STATIONS.length) % STATIONS.length;
   onMount(() => {
@@ -49,8 +53,11 @@
     try { localStorage.setItem(KEY, JSON.stringify({ station: stationIdx })); } catch { /* ignore */ }
   };
 
+  const idxOf = (s: Service) => CHIPS.findIndex((c) => c.id === s);
   function pick(s: Service) {
     const next: Service = s === service && s !== 'none' ? 'none' : s; // tap active → silence
+    if (next === service) return;
+    dir = idxOf(next) >= idxOf(service) ? 1 : -1; // slide toward the chip's side
     if (service === 'radio' && next !== 'radio') {
       audio?.pause();
       playing = false;
@@ -98,51 +105,60 @@
 </script>
 
 <div class="dock">
-  <!-- one fixed glass box; every service fills it identically -->
-  <div class="surface" data-svc={service}>
-    {#if service === 'radio'}
-      <div class="radio">
-        <button class="ctl play" onclick={togglePlay} aria-label={playing ? 'Pause' : 'Play'}>
-          {playing ? '❚❚' : '▶'}
-        </button>
-        <div class="now">
-          <span class="st-name">{STATIONS[stationIdx].name}</span>
-          <span class="st-desc">{STATIONS[stationIdx].desc} · SomaFM</span>
-        </div>
-        <button class="ctl" onclick={() => cycle(-1)} aria-label="Previous station">‹</button>
-        <button class="ctl" onclick={() => cycle(1)} aria-label="Next station">›</button>
-        <!-- svelte-ignore a11y_media_has_caption -->
-        <audio
-          bind:this={audio}
-          preload="none"
-          onerror={onAudioError}
-          onplaying={() => (playing = true)}
-          onpause={() => (playing = false)}
-        ></audio>
+  <!-- one fixed glass frame; the active player slides in, the old slides out the
+       other way (ease-out), so off players are physically off the frame -->
+  <div class="surface" data-svc={service} bind:clientWidth={boxW}>
+    {#key service}
+      <div
+        class="slot"
+        in:fly={{ x: dir * (boxW || 300), duration: 380, easing: cubicOut }}
+        out:fly={{ x: -dir * (boxW || 300), duration: 380, easing: cubicOut }}
+      >
+        {#if service === 'radio'}
+          <div class="radiobar">
+            <button class="ctl play" onclick={togglePlay} aria-label={playing ? 'Pause' : 'Play'}>
+              {playing ? '❚❚' : '▶'}
+            </button>
+            <div class="now">
+              <span class="st-name">{STATIONS[stationIdx].name}</span>
+              <span class="st-desc">{STATIONS[stationIdx].desc} · SomaFM</span>
+            </div>
+            <button class="ctl" onclick={() => cycle(-1)} aria-label="Previous station">‹</button>
+            <button class="ctl" onclick={() => cycle(1)} aria-label="Next station">›</button>
+            <!-- svelte-ignore a11y_media_has_caption -->
+            <audio
+              bind:this={audio}
+              preload="none"
+              onerror={onAudioError}
+              onplaying={() => (playing = true)}
+              onpause={() => (playing = false)}
+            ></audio>
+          </div>
+        {:else if service === 'spotify'}
+          <iframe
+            class="fill"
+            title="Spotify player"
+            src={SPOTIFY}
+            allow="encrypted-media; autoplay; clipboard-write; fullscreen; picture-in-picture"
+            loading="lazy"
+          ></iframe>
+        {:else if service === 'youtube'}
+          <div class="yt">
+            <iframe
+              title="YouTube lofi radio"
+              src={YOUTUBE}
+              allow="autoplay; encrypted-media; picture-in-picture"
+              loading="lazy"
+              allowfullscreen
+            ></iframe>
+          </div>
+        {:else if service === 'local'}
+          <div class="empty">Local tracks — coming soon</div>
+        {:else}
+          <div class="empty muted" aria-hidden="true">🔇</div>
+        {/if}
       </div>
-    {:else if service === 'spotify'}
-      <iframe
-        class="fill"
-        title="Spotify player"
-        src={SPOTIFY}
-        allow="encrypted-media; autoplay; clipboard-write; fullscreen; picture-in-picture"
-        loading="lazy"
-      ></iframe>
-    {:else if service === 'youtube'}
-      <div class="yt">
-        <iframe
-          title="YouTube lofi radio"
-          src={YOUTUBE}
-          allow="autoplay; encrypted-media; picture-in-picture"
-          loading="lazy"
-          allowfullscreen
-        ></iframe>
-      </div>
-    {:else if service === 'local'}
-      <div class="empty">Local tracks — coming soon</div>
-    {:else}
-      <div class="empty muted" aria-hidden="true">🔇</div>
-    {/if}
+    {/key}
   </div>
 
   <div class="chips" role="tablist" aria-label="Music player">
@@ -190,7 +206,14 @@
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 1.5cqw 4cqw -2cqw #000;
   }
 
-  /* players fill the box */
+  /* the sliding layer — one per active service; clipped by .surface so the
+     outgoing/incoming players are off the frame */
+  .slot {
+    position: absolute;
+    inset: 0;
+  }
+
+  /* players fill the slot */
   .fill {
     position: absolute;
     inset: 0;
@@ -228,7 +251,7 @@
   }
 
   /* ── SomaFM transport: uniform compact icon buttons, station name between ── */
-  .radio {
+  .radiobar {
     position: absolute;
     inset: 0;
     display: flex;
