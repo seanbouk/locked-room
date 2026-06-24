@@ -1058,9 +1058,6 @@
         </div>
       </div>
 
-      <!-- music player goes here — placeholder for now -->
-      <div class="dock"><span>music player</span></div>
-
   {#if toast}<div class="toast">{toast}</div>{/if}
 
   <!-- white flash: full on entry (fades in the level from white) and at the end
@@ -1078,15 +1075,11 @@
      to the viewport height too, so it never overflows a short frame. It's a query
      container: every HUD size below is in cqw (% of this panel's width), so the
      text, buttons and key tray always fill the same fraction at any scale. */
+  /* GameScreen fills the .panel (App owns the 3:4 sizing now). It's a query
+     container so the HUD below sizes in cqw and scales with the panel. */
   .screen {
-    position: relative;
-    /* contain to the parent: as large as fits while keeping 3:4, so it always
-       touches either the top+bottom or the left+right. No fixed 960px cap — that
-       would stop it filling a taller parent (itch pegs the iframe to 960 anyway,
-       where 100% already resolves to 960). */
-    width: min(100%, calc(100dvh * 372 / 496));
-    aspect-ratio: 372 / 496;
-    margin: 0 auto;
+    position: absolute;
+    inset: 0;
     overflow: hidden;
     background: #14171d;
     color: #e8edf7;
@@ -1178,25 +1171,6 @@
   .hud-bottom .tray,
   .hud-bottom .cancel {
     pointer-events: auto;
-  }
-  /* music player placeholder — a green-stroke rectangle in the band below the
-     keys, sized as a fraction of the panel so it scales with everything else */
-  .dock {
-    position: absolute;
-    left: 7%;
-    right: 7%;
-    bottom: 4%;
-    height: 15%;
-    border: 0.35cqw solid #00ad8e;
-    border-radius: 2cqw;
-    display: grid;
-    place-items: center;
-    pointer-events: auto;
-    color: rgba(0, 173, 142, 0.85);
-    font-family: ui-monospace, Consolas, monospace;
-    text-transform: uppercase;
-    letter-spacing: 0.25em;
-    font-size: 2cqw;
   }
 
   /* sliced-plate pieces: the dark void behind the gaps, the steel tiles, and

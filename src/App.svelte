@@ -5,6 +5,7 @@
   import { progress } from './lib/stores/progress.svelte';
   import GameScreen from './lib/components/GameScreen.svelte';
   import KeyIcon from './lib/components/KeyIcon.svelte';
+  import MusicDock from './lib/components/MusicDock.svelte';
 
   function firstUnfinished(): number {
     const inc = LEVELS.find((l) => progress.isUnlocked(l.id) && !progress.isComplete(l.id));
@@ -49,14 +50,19 @@
 </script>
 
 <main>
-  {#key currentId}
-    <GameScreen
-      level={currentLevel}
-      unlockedKeys={progress.unlockedKeys}
-      onComplete={handleComplete}
-      onOpenRooms={() => (showRooms = true)}
-    />
-  {/key}
+  <!-- the 3:4 panel: GameScreen remounts per room ({#key}), but the music dock
+       lives here too so playback carries across rooms -->
+  <div class="panel">
+    {#key currentId}
+      <GameScreen
+        level={currentLevel}
+        unlockedKeys={progress.unlockedKeys}
+        onComplete={handleComplete}
+        onOpenRooms={() => (showRooms = true)}
+      />
+    {/key}
+    <MusicDock />
+  </div>
 
   {#if showRooms}
     <div class="modal-bg" onclick={() => (showRooms = false)} role="presentation">
@@ -124,6 +130,18 @@
     display: grid;
     place-items: center;
     padding: 0;
+  }
+  /* the 3:4 portrait panel: as large as fits the parent while keeping ratio, so
+     it always touches top+bottom or left+right (itch pegs the iframe to 960). A
+     query container, so the panel's children size in cqw and scale as one unit.
+     GameScreen fills it; the music dock sits at its bottom and persists across
+     room remounts. */
+  .panel {
+    position: relative;
+    width: min(100%, calc(100dvh * 372 / 496));
+    aspect-ratio: 372 / 496;
+    container-type: inline-size;
+    overflow: hidden;
   }
 
   .modal-bg {
