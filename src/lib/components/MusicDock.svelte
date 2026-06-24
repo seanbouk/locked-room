@@ -364,18 +364,18 @@
     transition: border-color 0.15s, color 0.15s, background 0.15s;
   }
   .ctl:hover {
-    border-color: #00ad8e;
+    border-color: #f5b83c;
     color: #fff;
   }
   .ctl.play {
-    color: #04130f;
-    background: #00ad8e;
+    color: #2a1d02;
+    background: #f5b83c;
     border-color: transparent;
     font-size: 2.6cqw;
   }
   .ctl.play:hover {
-    filter: brightness(1.12);
-    color: #04130f;
+    filter: brightness(1.1);
+    color: #2a1d02;
   }
   .now {
     flex: 1;
@@ -405,24 +405,25 @@
     gap: 1.2cqw;
     flex-wrap: wrap;
   }
-  /* icon-only chips, all the same square so the row is even */
+  /* small icon-only chips, all the same square so the row is even */
   .chip {
     flex: none;
-    width: 8.2cqw;
-    height: 8.2cqw;
+    width: 4.6cqw;
+    height: 4.6cqw;
     display: grid;
     place-items: center;
     border: 1px solid rgba(255, 255, 255, 0.12);
     background: rgba(20, 24, 31, 0.55);
     color: #aab2c0;
-    border-radius: 2cqw;
+    border-radius: 1.2cqw;
     cursor: pointer;
     backdrop-filter: blur(4px);
     transition: color 0.15s, border-color 0.15s, background 0.15s;
   }
+  /* the icon fills most of the small chip (little padding) */
   .ci {
-    width: 4.6cqw;
-    height: 4.6cqw;
+    width: 3.4cqw;
+    height: 3.4cqw;
     display: block;
   }
   .chip:hover {
@@ -432,7 +433,7 @@
   .chip.on {
     background: rgba(255, 255, 255, 0.08);
   }
-  .chip.radio.on { color: #14d6b4; border-color: #00ad8e; box-shadow: 0 0 0 1px #00ad8e; }
+  .chip.radio.on { color: #ffc94f; border-color: #f5b83c; box-shadow: 0 0 0 1px #f5b83c; }
   .chip.spotify.on { color: #1ed760; border-color: #1db954; box-shadow: 0 0 0 1px #1db954; }
   .chip.youtube.on { color: #ff5c5c; border-color: #ff4d4d; box-shadow: 0 0 0 1px #ff4d4d; }
   .chip.local.on { color: #e6b65a; border-color: #c8923f; box-shadow: 0 0 0 1px #c8923f; }
