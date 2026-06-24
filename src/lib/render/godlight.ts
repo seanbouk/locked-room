@@ -36,8 +36,9 @@ export interface GodLightParams {
   coreMix: number;
   /** Overall brightness (ramped by the caller as the lock opens). */
   intensity: number;
-  /** Warm light colour, linear 0..1. */
-  tint: [number, number, number];
+  /** 0 = each opening keeps the colour painted into the aperture (the key that
+   *  revealed it); 1 = the whole field washed to white (the round-end flood). */
+  whiten: number;
 }
 
 const VERT = `#version 300 es
@@ -50,7 +51,8 @@ void main(){
   gl_Position = vec4(aPos, 0.0, 1.0);
 }`;
 
-// Separable morphology: min (erode) or max (dilate) along uDir.
+// Separable morphology: min (erode) or max (dilate) along uDir. Runs per-channel
+// so a coloured opening keeps its hue (the light a key reveals is its colour).
 const MORPH = `#version 300 es
 precision highp float;
 in vec2 vUV; out vec4 o;
@@ -59,15 +61,15 @@ uniform vec2 uDir;
 uniform int uTaps;
 uniform float uMode; // 0 = erode (min), 1 = dilate (max)
 void main(){
-  float acc = texture(uTex, vUV).r;
+  vec3 acc = texture(uTex, vUV).rgb;
   for(int i=1;i<=64;i++){
     if(i>uTaps) break;
     vec2 off = uDir*float(i);
-    float a = texture(uTex, vUV+off).r;
-    float b = texture(uTex, vUV-off).r;
+    vec3 a = texture(uTex, vUV+off).rgb;
+    vec3 b = texture(uTex, vUV-off).rgb;
     if(uMode<0.5){ acc=min(acc,min(a,b)); } else { acc=max(acc,max(a,b)); }
   }
-  o = vec4(vec3(acc),1.0);
+  o = vec4(acc,1.0);
 }`;
 
 // Radial / zoom blur: a light source sits behind the centre, so each output
@@ -82,7 +84,7 @@ uniform int uSamples;
 uniform float uReach;
 void main(){
   vec2 toC = uCenter - vUV;
-  float acc=0.0, wsum=0.0;
+  vec3 acc=vec3(0.0); float wsum=0.0;
   for(int i=0;i<128;i++){
     if(i>=uSamples) break;
     float t = float(i)/float(uSamples-1);
@@ -90,10 +92,10 @@ void main(){
     // shaft is bright right at its gap and fades off quickly (early thin gaps
     // don't bloom into a blinding wash).
     float w = pow(1.0 - t, 3.0);
-    acc += texture(uTex, vUV + toC*(t*uReach)).r * w;
+    acc += texture(uTex, vUV + toC*(t*uReach)).rgb * w;
     wsum += w;
   }
-  o = vec4(vec3(acc/max(wsum,1e-4)),1.0);
+  o = vec4(acc/max(wsum,1e-4),1.0);
 }`;
 
 const COMPOSITE = `#version 300 es
@@ -101,18 +103,22 @@ precision highp float;
 in vec2 vUV; out vec4 o;
 uniform sampler2D uRays;
 uniform sampler2D uCore;
-uniform vec3 uTint;
 uniform float uIntensity;
 uniform float uCoreMix;
+uniform float uWhiten; // 0 = the opening's own colour, 1 = washed to white
 void main(){
-  float rays = texture(uRays, vUV).r;
-  float core = texture(uCore, vUV).r;
-  float L = (rays + core*uCoreMix) * uIntensity;
-  // Exponential roll-off: saturates to brilliant white at the bright end (a big
-  // opening reads pure white) while still easing the dim gaps up from black, so
-  // it never hard-clips.
+  vec3 rays = texture(uRays, vUV).rgb;
+  vec3 core = texture(uCore, vUV).rgb;
+  vec3 lit = rays + core*uCoreMix;
+  // brightness is the strongest channel, so a saturated colour is as "bright" as
+  // white — exposure (hence shaft length / bloom) doesn't depend on hue.
+  float m = max(max(lit.r, lit.g), lit.b);
+  float L = m * uIntensity;
+  // Exponential roll-off: eases the dim gaps up from black without hard-clipping.
   float t = 1.0 - exp(-L * 1.4);
-  vec3 c = uTint * t;
+  // hue = the light's own colour; wash it to white as the lock seats at round-end.
+  vec3 hue = lit / max(m, 1e-4);
+  vec3 c = mix(hue, vec3(1.0), uWhiten) * t;
   o = vec4(c, 1.0);
 }`;
 
@@ -300,7 +306,7 @@ export class GodLight {
     gl.useProgram(this.progComp);
     this.bindInput(this.progComp, 'uRays', this.b.tex, 0);
     this.bindInput(this.progComp, 'uCore', this.c.tex, 1);
-    gl.uniform3f(gl.getUniformLocation(this.progComp, 'uTint'), p.tint[0], p.tint[1], p.tint[2]);
+    gl.uniform1f(gl.getUniformLocation(this.progComp, 'uWhiten'), p.whiten);
     gl.uniform1f(gl.getUniformLocation(this.progComp, 'uIntensity'), p.intensity);
     gl.uniform1f(gl.getUniformLocation(this.progComp, 'uCoreMix'), p.coreMix);
     this.drawQuad(this.progComp, true);

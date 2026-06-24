@@ -49,7 +49,7 @@ const STRAIGHT = 180;
 // ── Angle in a semicircle is a right angle (axiom — needs nothing prior) ──────
 const semicircle: SkeletonKey = {
   id: 'semicircle',
-  name: 'Right-Angle Key',
+  name: 'Right-Angle Skeleton Key',
   blurb: 'The angle in a semicircle is a right angle.',
   match(p) {
     const out: Placement[] = [];
@@ -68,7 +68,7 @@ const semicircle: SkeletonKey = {
 // ── Angles in the same segment are equal (propagator) ─────────────────────────
 const sameSegment: SkeletonKey = {
   id: 'same-segment',
-  name: 'Same-Segment Key',
+  name: 'Same-Segment Skeleton Key',
   blurb: 'Angles subtended by the same chord, on the same side, are equal.',
   match(p) {
     const out: Placement[] = [];
@@ -96,7 +96,7 @@ const sameSegment: SkeletonKey = {
 // ── Angle at the centre is twice the angle at the circumference (propagator) ──
 const angleAtCentre: SkeletonKey = {
   id: 'angle-at-centre',
-  name: 'Double-Angle Key',
+  name: 'Double-Angle Skeleton Key',
   blurb: 'The angle at the centre is twice the angle at the circumference.',
   match(p) {
     const out: Placement[] = [];
@@ -125,7 +125,7 @@ const angleAtCentre: SkeletonKey = {
 // ── Angles in a triangle sum to 180° (combinator) ─────────────────────────────
 const triangleSum: SkeletonKey = {
   id: 'triangle-sum',
-  name: 'Triangle Key',
+  name: 'Triangle Skeleton Key',
   blurb: 'The three angles of a triangle add up to 180°.',
   match(p) {
     const out: Placement[] = [];
@@ -170,7 +170,7 @@ function isTriangle(p: Puzzle, tri: Angle[]): boolean {
 // ── Base angles of an isosceles triangle (two radii) are equal (propagator) ──
 const isoscelesRadii: SkeletonKey = {
   id: 'isosceles-radii',
-  name: 'Balance Key',
+  name: 'Balance Skeleton Key',
   blurb: 'Two radii make an isosceles triangle: its base angles are equal.',
   match(p) {
     const out: Placement[] = [];

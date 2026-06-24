@@ -1,8 +1,10 @@
 <script lang="ts">
   import { LEVELS } from './lib/engine/levels';
   import { ALL_KEYS } from './lib/engine/theorems';
+  import { KEY_COLORS } from './lib/render/keyStyle';
   import { progress } from './lib/stores/progress.svelte';
   import GameScreen from './lib/components/GameScreen.svelte';
+  import KeyIcon from './lib/components/KeyIcon.svelte';
 
   function firstUnfinished(): number {
     const inc = LEVELS.find((l) => progress.isUnlocked(l.id) && !progress.isComplete(l.id));
@@ -95,13 +97,23 @@
   {/if}
 
   {#if rewardKeyId}
-    <div class="modal-bg" role="presentation">
-      <div class="modal reward" role="dialog" aria-label="New key">
-        <div class="bigkey">⚷</div>
-        <h2>You won the {ALL_KEYS[rewardKeyId].name}</h2>
-        <p class="blurb">{ALL_KEYS[rewardKeyId].blurb}</p>
-        <button class="continue" onclick={dismissReward}>Add to keyring & continue →</button>
-      </div>
+    <!-- the round has ended on white (the lock seats and floods); the reward
+         holds on that white — no box, no dark backdrop, no button. The won key
+         (the exact tray icon, in its colour) is the centrepiece. Tap anywhere. -->
+    <div
+      class="reward-screen"
+      style:--c={KEY_COLORS[rewardKeyId]}
+      role="button"
+      tabindex="0"
+      aria-label="You won the {ALL_KEYS[rewardKeyId].name}. Tap to continue."
+      onclick={dismissReward}
+      onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && dismissReward()}
+    >
+      <div class="eyebrow">New skeleton key</div>
+      <div class="rname">{ALL_KEYS[rewardKeyId].name}</div>
+      <KeyIcon id={rewardKeyId} glow={false} />
+      <p class="rblurb">{ALL_KEYS[rewardKeyId].blurb}</p>
+      <div class="tap">Tap to continue…</div>
     </div>
   {/if}
 </main>
@@ -222,28 +234,65 @@
     opacity: 0.6;
     padding: 0;
   }
-  .reward {
+  /* ── reward screen ──
+     A full-screen white hold (the round already flooded white as the lock
+     seated). No card, no backdrop, no button — the won key is the centrepiece
+     and the whole surface is the "continue" control. Themed in the key colour. */
+  .reward-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: radial-gradient(120% 90% at 50% 32%, #ffffff, #f4f0e6);
+    color: #1a1d24;
+    display: flex;
+    flex-direction: column;
     align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
     text-align: center;
-  }
-  .blurb {
-    margin: 0;
-    opacity: 0.7;
-  }
-  .bigkey {
-    font-size: 3.5rem;
-    color: #ffe07a;
-    filter: drop-shadow(0 0 20px rgba(255, 220, 120, 0.6));
-    animation: rise 0.6s ease;
-  }
-  .continue {
-    padding: 0.6rem 1.1rem;
-    border-radius: 10px;
-    border: none;
-    background: #ffe07a;
-    color: #1a1303;
-    font-weight: 700;
+    padding: 2rem 1.8rem;
     cursor: pointer;
+    animation: fade 0.35s ease;
+  }
+  .reward-screen:focus-visible {
+    outline: none;
+  }
+  .eyebrow {
+    font-family: ui-monospace, Consolas, monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.28em;
+    font-size: 0.66rem;
+    color: color-mix(in srgb, var(--c) 62%, #6a5320);
+  }
+  .rname {
+    font-size: clamp(1.6rem, 7vw, 2.3rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+    margin: 0.2rem 0 0.5rem;
+    max-width: 14ch;
+  }
+  .reward-screen :global(.ki) {
+    width: min(62vw, 240px);
+    margin: 0.3rem 0 1rem;
+    animation: rise 0.55s ease;
+    filter: drop-shadow(0 12px 26px color-mix(in srgb, var(--c) 45%, transparent));
+  }
+  .rblurb {
+    margin: 0;
+    color: #4a5160;
+    font-size: 1rem;
+    line-height: 1.45;
+    max-width: 28ch;
+  }
+  .tap {
+    margin-top: 1.8rem;
+    font-family: ui-monospace, Consolas, monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    font-size: 0.72rem;
+    color: #8a90a0;
+    animation: pulse 1.8s ease-in-out infinite;
   }
   @keyframes fade {
     from {
@@ -252,8 +301,24 @@
   }
   @keyframes rise {
     from {
-      transform: translateY(12px) scale(0.7);
+      transform: translateY(12px) scale(0.8);
       opacity: 0;
+    }
+  }
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 0.4;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .reward-screen,
+    .reward-screen :global(.ki),
+    .tap {
+      animation: none;
     }
   }
 </style>

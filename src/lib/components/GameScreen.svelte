@@ -5,6 +5,8 @@
   import { makeRope, stepRope, type Bead } from '../render/rope';
   import { ALL_KEYS, type Placement } from '../engine/theorems';
   import { GodLight } from '../render/godlight';
+  import { KEY_COLORS } from '../render/keyStyle';
+  import KeyIcon from './KeyIcon.svelte';
   import type { Level } from '../engine/levels';
 
   let {
@@ -45,6 +47,9 @@
   })();
 
   let solved = $state(new Set<string>(lock.solvedIds()));
+  // angle id -> the skeleton key that solved it, so the light its wedge reveals
+  // glows in that key's colour (see rasterizeAperture / the god-light tint).
+  let solvedBy = $state(new Map<string, string>());
   let flash = $state(new Set<string>());
   let appliedLabels = $state(new Set<string>());
   let toast = $state('');
@@ -199,6 +204,9 @@
   let animateUntil = 0;
   // eased state, advanced in the frame loop
   let intensity = 0;
+  // 0 during play (each opening glows its solving key's colour) -> 1 as the lock
+  // seats at round-end (the coloured shafts wash up to a white flood).
+  let whiten = 0;
   let lit = $state(false); // started raining light at least once (fades canvas in)
 
   // ── Dev HUD counter ─────────────────────────────────────────────────────────
@@ -222,6 +230,21 @@
   // gap, the doors sliding off, the lock leaving), never a per-phase multiplier.
   const BRIGHTNESS = 1.5;
   const intensityTarget = () => (phase === 'intro' ? 0 : BRIGHTNESS);
+  // The coloured solve-light holds through play and the wedge cascade, then washes
+  // up to white as the lock recedes, turns and the doors open (the lock "going in").
+  const whitenTarget = () => {
+    switch (phase) {
+      case 'circleBack':
+        return 0.55;
+      case 'rotate':
+        return 0.85;
+      case 'doors':
+      case 'flash':
+        return 1;
+      default:
+        return 0; // intro / play / drop / spin: keep the key colours
+    }
+  };
 
   function syncSize() {
     if (!glCanvas) return;
@@ -320,8 +343,13 @@
     if (lockScm) {
       const lm = s2a.multiply(lockScm);
       apCtx.setTransform(1, 0, 0, 1, 0, 0);
-      apCtx.fillStyle = '#fff';
       for (const a of drawn.angles) {
+        // the bright room behind this pin is tinted by the key that solved it, so
+        // when its wedge drops the light spilling through glows that colour. Given
+        // / not-yet-solved pins stay white. (The whole field washes white at the
+        // end via the god-light `whiten`, so given pins don't read as "dead".)
+        const by = solvedBy.get(a.id);
+        apCtx.fillStyle = by ? KEY_COLORS[by] : '#fff';
         const c = lm.transformPoint(new DOMPoint(a.vx, a.vy));
         const e = lm.transformPoint(new DOMPoint(a.vx + PIN_R, a.vy));
         const rad = Math.hypot(e.x - c.x, e.y - c.y);
@@ -352,6 +380,8 @@
     // area the aperture reveals, never from a per-phase multiplier.
     const it = intensityTarget();
     intensity += (it - intensity) * 0.16;
+    const wt = whitenTarget();
+    whiten += (wt - whiten) * 0.16;
     rasterizeAperture();
     light.render(aperture, {
       cx: centreX,
@@ -362,10 +392,10 @@
       blurReach: 0.6, // shorter shafts: bright at the gap, quick falloff
       coreMix: 0.7,
       intensity,
-      tint: [1.0, 1.0, 1.0], // brilliant white
+      whiten, // key-colour during play -> white as the lock seats
     });
     lit = true;
-    const easing = Math.abs(it - intensity) > 0.01;
+    const easing = Math.abs(it - intensity) > 0.01 || Math.abs(wt - whiten) > 0.01;
     // Always keep rendering through the whole transition (pieces are moving every
     // frame), so the aperture never lags the recede / spin / door swing.
     const live = phase !== 'play' && phase !== 'intro';
@@ -580,6 +610,9 @@
     endChain();
     preview = null;
     if (newIds.length) {
+      const sb = new Map(solvedBy);
+      for (const id of newIds) sb.set(id, p.keyId);
+      solvedBy = sb;
       flash = new Set(newIds);
       setTimeout(() => (flash = new Set()), 900);
     } else {
@@ -700,31 +733,6 @@
 </script>
 
 <svelte:window onkeydown={onKeydown} />
-
-{#snippet keyIcon(id: string)}
-  <svg class="ki" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    {#if id === 'semicircle'}
-      <path d="M4 4 V20 H20" />
-      <path d="M4 14 H10 V20" />
-    {:else if id === 'triangle-sum'}
-      <path d="M12 4 L20.5 19.5 H3.5 Z" />
-    {:else if id === 'same-segment'}
-      <path d="M9 4 A 9 9 0 0 0 9 20" />
-      <path d="M15 4 A 9 9 0 0 1 15 20" />
-    {:else if id === 'angle-at-centre'}
-      <circle cx="12" cy="12" r="8.5" />
-      <path d="M12 12 L12 3.5" />
-      <path d="M12 12 L20 15" />
-      <circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none" />
-    {:else if id === 'isosceles-radii'}
-      <path d="M12 3 V16" />
-      <path d="M5 8 H19" />
-      <path d="M5 8 L2.5 13 H7.5 Z" />
-      <path d="M19 8 L16.5 13 H21.5 Z" />
-      <path d="M8 20 H16" />
-    {/if}
-  </svg>
-{/snippet}
 
 <div class="screen {phase}" class:shake>
       <svg bind:this={svgEl} viewBox={drawn.viewBox} class:open={transitioning} role="img" aria-label="lock puzzle">
@@ -989,7 +997,7 @@
               title={locked ? 'Locked — win this key in an earlier room' : k.blurb}
               onpointerdown={(e) => startKeyDrag(e, k.id)}
             >
-              {@render keyIcon(k.id)}
+              <KeyIcon id={k.id} />
               {#if locked}<span class="lock-badge">🔒</span>{/if}
             </div>
           {/each}
@@ -1003,7 +1011,7 @@
   <div class="whiteout" class:on={phase === 'intro' || phase === 'flash'}></div>
 
   {#if drag}
-    <div class="ghost" style="left:{drag.x}px; top:{drag.y}px">{@render keyIcon(drag.keyId)}</div>
+    <div class="ghost" style="left:{drag.x}px; top:{drag.y}px"><KeyIcon id={drag.keyId} /></div>
   {/if}
 </div>
 
@@ -1271,7 +1279,6 @@
     border-radius: 9px;
     border: 1px solid #474e5c;
     background: linear-gradient(160deg, #2c333f, #1b212b);
-    color: #e7be5e;
     cursor: grab;
     touch-action: none;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 2px 4px rgba(0, 0, 0, 0.35);
@@ -1284,16 +1291,15 @@
   .key:active {
     cursor: grabbing;
   }
-  .ki {
-    display: block;
-    width: 28px;
-    height: 28px;
+  /* the skeleton key icon is its own colour; the tray just sizes it */
+  .key :global(.ki) {
+    width: 42px;
   }
   .key.locked {
-    color: #6b7280;
     cursor: not-allowed;
     border-style: dashed;
     opacity: 0.6;
+    filter: grayscale(0.7) brightness(0.8);
   }
   .key.dimmed {
     opacity: 0.3;
@@ -1315,14 +1321,12 @@
   .ghost {
     position: fixed;
     transform: translate(-50%, -50%);
-    color: #ffe07a;
     pointer-events: none;
     filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.6));
     z-index: 50;
   }
   .ghost :global(.ki) {
-    width: 38px;
-    height: 38px;
+    width: 52px;
   }
 
   .toast {
