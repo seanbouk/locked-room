@@ -1080,7 +1080,11 @@
      text, buttons and key tray always fill the same fraction at any scale. */
   .screen {
     position: relative;
-    width: min(100%, 960px, calc(100dvh * 372 / 496));
+    /* contain to the parent: as large as fits while keeping 3:4, so it always
+       touches either the top+bottom or the left+right. No fixed 960px cap — that
+       would stop it filling a taller parent (itch pegs the iframe to 960 anyway,
+       where 100% already resolves to 960). */
+    width: min(100%, calc(100dvh * 372 / 496));
     aspect-ratio: 372 / 496;
     margin: 0 auto;
     overflow: hidden;
