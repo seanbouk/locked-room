@@ -40,29 +40,41 @@ function clamp(v: number) {
   return Math.max(-BOUND, Math.min(BOUND, v));
 }
 
+/** Step the chain. `anchor`/`handle` pin bead 0 / the last bead when given; pass
+ *  null to free that end (so a released key sags or falls). `opts.bound` keeps
+ *  the beads inside the viewBox (true while in play); pass false to let the chain
+ *  fall off-screen. `opts.gravity` overrides the per-step pull (a heavier value
+ *  flings a failed key off faster). */
 export function stepRope(
   beads: Bead[],
-  anchor: { x: number; y: number },
+  anchor: { x: number; y: number } | null,
   handle: { x: number; y: number } | null,
+  opts: { bound?: boolean; gravity?: number } = {},
 ) {
   const last = beads.length - 1;
+  const bound = opts.bound ?? true;
+  const gravity = opts.gravity ?? GRAVITY;
+  const lim = (v: number) => (bound ? clamp(v) : v);
 
-  // Verlet integration for free beads.
-  for (let i = 1; i < beads.length; i++) {
+  // Verlet integration for free beads (a pinned end is skipped).
+  for (let i = 0; i < beads.length; i++) {
+    if (anchor && i === 0) continue;
     if (handle && i === last) continue;
     const b = beads[i];
     const vx = (b.x - b.px) * FRICTION;
     const vy = (b.y - b.py) * FRICTION;
     b.px = b.x;
     b.py = b.y;
-    b.x = clamp(b.x + vx);
-    b.y = clamp(b.y + vy + GRAVITY);
+    b.x = lim(b.x + vx);
+    b.y = lim(b.y + vy + gravity);
   }
 
   // Distance constraints, re-pinning the fixed ends each pass.
   for (let k = 0; k < ITER; k++) {
-    beads[0].x = anchor.x;
-    beads[0].y = anchor.y;
+    if (anchor) {
+      beads[0].x = anchor.x;
+      beads[0].y = anchor.y;
+    }
     if (handle) {
       beads[last].x = handle.x;
       beads[last].y = handle.y;
@@ -82,8 +94,10 @@ export function stepRope(
       b.y -= oy;
     }
   }
-  beads[0].x = anchor.x;
-  beads[0].y = anchor.y;
+  if (anchor) {
+    beads[0].x = anchor.x;
+    beads[0].y = anchor.y;
+  }
   if (handle) {
     beads[last].x = handle.x;
     beads[last].y = handle.y;

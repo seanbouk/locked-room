@@ -502,6 +502,12 @@
   let grabbing = $state(false);
   let handlePt = { x: 0, y: 0 };
   let raf = 0;
+  // Dropping the loose end on a wrong node: the key comes off rather than waiting
+  // for a cancel. The anchor lets go first (the chain twangs toward the cursor),
+  // then a beat later the held end lets go too and the whole key falls off-screen.
+  let failing = $state(false);
+  let failPt = { x: 0, y: 0 }; // where the cursor released — the brief pin point
+  let failHeld = false; // is the loose end still pinned to failPt (phase 1)?
 
   const keyring = $derived(unlockedKeys ?? []);
   const isUnlocked = (id: string) => keyring.includes(id);
@@ -636,15 +642,46 @@
   function endChain() {
     chain = null;
     grabbing = false;
+    failing = false;
+    failHeld = false;
     if (raf) cancelAnimationFrame(raf);
     raf = 0;
+  }
+  // Wrong second node: let the key fall off instead of needing the cancel button.
+  // Free the anchor now (the chain whips toward the held cursor), drop the held
+  // end a beat later, then clear once it's fallen off-screen.
+  function failChain(pt: { x: number; y: number }) {
+    if (!chain || failing) return;
+    failPt = pt;
+    failing = true;
+    failHeld = true;
+    grabbing = false;
+    // kill the drag velocity so the key swings cleanly from the cursor and drops,
+    // instead of flinging off in whatever direction it was last yanked.
+    for (const b of ropeBeads) {
+      b.px = b.x;
+      b.py = b.y;
+    }
+    setTimeout(() => (failHeld = false), 190); // release the second part
+    setTimeout(endChain, 1100); // it's left the screen by now
+    if (!raf) raf = requestAnimationFrame(loop);
   }
   function loop() {
     if (!chain) {
       raf = 0;
       return;
     }
-    stepRope(ropeBeads, vpos(chain.anchor), grabbing ? handlePt : null);
+    if (failing) {
+      // Phase 1 (failHeld): anchor free, held end pinned at the cursor, still
+      // bounded — the chain snaps/twangs toward the cursor on-screen. Phase 2:
+      // both ends free, unbounded + heavier gravity, so the key drops off-screen.
+      stepRope(ropeBeads, null, failHeld ? failPt : null, {
+        bound: failHeld,
+        gravity: failHeld ? 0.35 : 0.75,
+      });
+    } else {
+      stepRope(ropeBeads, vpos(chain.anchor), grabbing ? handlePt : null);
+    }
     ropeTick++;
     raf = requestAnimationFrame(loop);
   }
@@ -716,7 +753,7 @@
       (p) => p.angleIds.length === 2 && p.angleIds.includes(chain!.anchor) && p.angleIds.includes(B),
     );
     if (done) apply(done);
-    else reject();
+    else failChain(handlePt); // wrong node — the key twangs off and falls away
   }
   function startHandleGrab(e: PointerEvent) {
     e.preventDefault();
@@ -956,8 +993,10 @@
               style:color={isHandle ? KEY_COLORS[chain.keyId] : null}
             />
           {/each}
-          {@const h = chainPts[chainPts.length - 1]}
-          <circle cx={h.x} cy={h.y} r="18" class="grab" onpointerdown={startHandleGrab} role="button" tabindex="-1" aria-label="chain end" />
+          {#if !failing}
+            {@const h = chainPts[chainPts.length - 1]}
+            <circle cx={h.x} cy={h.y} r="18" class="grab" onpointerdown={startHandleGrab} role="button" tabindex="-1" aria-label="chain end" />
+          {/if}
         {/if}
 
         <!-- invisible drop targets, on top so elementFromPoint finds them -->
@@ -988,7 +1027,7 @@
       </div>
 
       <div class="hud-bottom">
-        {#if chain}
+        {#if chain && !failing}
           <div class="prompt">
             Drag the <b>{chainName}</b>’s loose end onto the part it links to.
             <button class="cancel" onclick={endChain}>✕ cancel</button>
