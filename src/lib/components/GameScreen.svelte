@@ -683,8 +683,11 @@
       if (p) apply(p);
       else reject();
     } else {
-      if (placementsFor(d.keyId).some((q) => q.angleIds.includes(A))) startChain(d.keyId, A);
-      else reject();
+      // A two-part key anchors on ANY node you drop it on — don't reject up front.
+      // You then drag the loose end to the second node, and it only fails (in
+      // onHandleUp) if that pair isn't a valid placement. Lets the player try the
+      // link rather than noping the first half.
+      startChain(d.keyId, A);
     }
   }
   function startKeyDrag(e: PointerEvent, keyId: string) {
