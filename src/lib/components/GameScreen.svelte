@@ -51,9 +51,12 @@
   // angle id -> the skeleton key that solved it, so the light its wedge reveals
   // glows in that key's colour (see rasterizeAperture / the god-light tint).
   let solvedBy = $state(new Map<string, string>());
+  // angle id -> key that "loosened" it: a valid placement that doesn't yet solve
+  // a value tints the affected segments to that key's colour (progress on the
+  // board, instead of a toast).
+  let loosenedBy = $state(new Map<string, string>());
   let flash = $state(new Set<string>());
   let appliedLabels = $state(new Set<string>());
-  let toast = $state('');
   // a wrong drop jitters the ITEM it landed on (a pin, or a triangle) — never the
   // whole screen, which won't exist once the game fills its frame.
   let shakePins = $state(new Set<string>());
@@ -643,28 +646,10 @@
     shakeTri.length ? shakeTri.map((v) => { const p = ptPos.get(v)!; return `${p.x},${p.y}`; }).join(' ') : '',
   );
 
-  // Is there any unplayed placement that would solve something right now?
-  function anyProductiveMove(): boolean {
-    for (const pl of lock.availablePlacements(keyring)) {
-      if (appliedLabels.has(pl.label)) continue;
-      if (lock.probe(pl).length > 0) return true;
-    }
-    return false;
-  }
-
   function apply(p: Placement) {
-    // A rule may only stick if it determines something now — unless nothing can
-    // (a forced combination, e.g. two rules that only resolve together). This
-    // stops a rule being applied out of order and silently pre-loading an
-    // equation that makes a later rule solve two angles at once.
-    if (lock.probe(p).length === 0 && anyProductiveMove()) {
-      endChain();
-      preview = null;
-      reject({ pins: p.angleIds });
-      toast = 'Not yet — solve what it needs first.';
-      setTimeout(() => (toast = ''), 2000);
-      return;
-    }
+    // Apply the rule wherever it legally fits — even if it determines no value
+    // yet (a forced combination resolves with a later key). No "not yet" copy:
+    // the board shows progress by tinting the affected segments (see below).
     const newIds = lock.apply(p);
     appliedLabels = new Set([...appliedLabels, p.label]);
     solved = new Set(lock.solvedIds());
@@ -682,14 +667,18 @@
       // ...and each freshly-solved wedge drops back (sized like the cascade)
       for (const id of newIds) {
         if (givenSet.has(id)) continue;
-        const pc = drawn.angles.find((x) => x.id === id)?.pieces.find((p) => p.marked);
+        const pc = drawn.angles.find((x) => x.id === id)?.pieces.find((q) => q.marked);
         if (pc) sfx.drop(wedgeSize(pc.d), 0.2);
       }
       flash = new Set(newIds);
       setTimeout(() => (flash = new Set()), 900);
     } else {
-      toast = 'The key turns — but nothing gives yet.';
-      setTimeout(() => (toast = ''), 1800);
+      // valid but nothing resolves yet — mark the touched segments as "loosened"
+      // (tinted to this key's colour) so progress reads on the board.
+      const lb = new Map(loosenedBy);
+      for (const id of p.angleIds) if (!solved.has(id) && !givenSet.has(id)) lb.set(id, p.keyId);
+      loosenedBy = lb;
+      sfx.clunk(); // the key engaged / loosened it
     }
     if (lock.isOpen) setTimeout(startTransition, 350);
   }
@@ -991,13 +980,15 @@
                 {/if}
                 {#each a.pieces as pc, j (j)}
                   {@const dn = pieceDown(ai, j)}
+                  {@const loosen =
+                    !debugTint && pc.marked && !given && !solved.has(a.id) && loosenedBy.get(a.id)}
                   <path
                     d={pc.d}
                     class="pin-piece"
-                    class:brass={!debugTint && (given || pc.marked)}
+                    class:brass={!debugTint && (given || pc.marked) && !loosen}
                     class:lit={!debugTint && fresh && pc.marked}
                     class:down={dn}
-                    style:fill={debugTint ? tintColor(pinBase[ai] + j) : null}
+                    style:fill={debugTint ? tintColor(pinBase[ai] + j) : loosen ? KEY_COLORS[loosen] : null}
                     style:transition-delay={phase === 'drop' ? dropDelayMs(ai, j) : '0ms'}
                     transform={`scale(${dn ? wedgeBack : 1})`}
                     filter="url(#bevel)"
@@ -1137,7 +1128,6 @@
         </div>
       </div>
 
-  {#if toast}<div class="toast">{toast}</div>{/if}
 
   <!-- white flash: full on entry (fades in the level from white) and at the end
        of the transition (fades out to the next level) -->
@@ -1498,17 +1488,6 @@
     width: 8.5cqw;
   }
 
-  .toast {
-    position: absolute;
-    bottom: 22%;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #10182b;
-    border: 1px solid #3a4a73;
-    padding: 0.5rem 0.9rem;
-    border-radius: 10px;
-    font-size: 0.85rem;
-  }
   /* ── level transition ──
      Transforms are SVG attributes; these transitions just smooth them, with a
      bouncy back-out for a mechanical clunk.
