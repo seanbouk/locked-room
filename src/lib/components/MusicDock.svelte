@@ -1,95 +1,52 @@
 <script lang="ts">
-  // Music dock — a carousel of OPTIONAL players below the puzzle. Every service
-  // fills ONE fixed glass box (same size for all), with a chip row beneath.
+  // Music dock — a single, optional SomaFM radio player below the puzzle.
   //
-  // Silence (None) by default — a quiet empty glass panel, nothing pushed. Picking
-  // a service loads its player; switching unloads the previous one (the only
-  // reliable way to "mute" a cross-origin embed). Leads with the free, no-login
-  // indie option (SomaFM); Spotify / YouTube are "bring your own".
+  // SomaFM is free, no-login, commercial-free, listener-supported indie radio —
+  // the right fit for a quiet puzzle game (we tried Spotify/YouTube too; they
+  // weren't). Play/pause is the on/off; it opens silent. Neutral glass skin so it
+  // sits quietly under the lock.
   //
   // Lives in App (outside GameScreen's per-room {#key} remount) so playback
-  // carries across rooms.
+  // carries across rooms. NOTE: SomaFM's direct streams are licensed "for personal
+  // use" — get their OK before shipping this widely.
   import { onMount } from 'svelte';
-  import { fly } from 'svelte/transition';
-  import { cubicOut } from 'svelte/easing';
 
-  type Service = 'none' | 'radio' | 'spotify' | 'youtube' | 'local';
-
-  // SomaFM: free, listener-supported, commercial-free indie radio. NOTE: their
-  // direct streams are licensed "for personal use" — get their OK before shipping
-  // this widely. Lofi/chill picks; swap or extend freely.
+  // lofi / chill / beats stations. Swap or extend freely (id = the somafm slug).
   const STATIONS = [
-    { name: 'Fluid', desc: 'instrumental hiphop · future soul', url: 'https://ice5.somafm.com/fluid-128-mp3', alt: 'https://ice3.somafm.com/fluid-128-mp3' },
-    { name: 'Beat Blender', desc: 'late-night downtempo beats', url: 'https://ice5.somafm.com/beatblender-128-mp3', alt: 'https://ice3.somafm.com/beatblender-128-mp3' },
-    { name: 'Groove Salad', desc: 'chilled ambient · downtempo', url: 'https://ice5.somafm.com/groovesalad-128-mp3', alt: 'https://ice3.somafm.com/groovesalad-128-mp3' },
+    { name: 'Fluid', desc: 'instrumental hiphop · future soul', id: 'fluid' },
+    { name: 'Beat Blender', desc: 'late-night downtempo beats', id: 'beatblender' },
+    { name: 'Groove Salad', desc: 'chilled ambient · downtempo', id: 'groovesalad' },
+    { name: 'Lush', desc: 'mellow vocals · downtempo', id: 'lush' },
+    { name: 'Cliqhop', desc: 'glitchy IDM · chill beats', id: 'cliqhop' },
   ];
-  // Recommended lofi sources (swap freely). Spotify: full playback only if the
-  // viewer is logged into Spotify in this browser (no in-embed login exists);
-  // others get 30s previews. YouTube: a lofi PLAYLIST embed (durable, unlike a
-  // live-stream/video id) on the nocookie host. It is a VIDEO player — YouTube
-  // Music has no embeddable player.
-  const SPOTIFY = 'https://open.spotify.com/embed/playlist/0vvXsWCC9xrXsKd4FyS8kM?theme=0';
-  // YouTube: the actual embed is the left of the box; these buttons (right) swap
-  // which playlist it loads. Swap/extend freely — drop in your own list IDs.
-  const YT_PLAYLISTS = [
-    { name: 'Lofi mix', id: 'PLyORnIW1xT6xL7lVBSCsEoI0NPlpcwzj2' },
-    { name: 'Chillhop', id: 'PLt7bG0K25iXi9KIt6P6yStMp9ObzXjApm' },
-    { name: 'Essentials', id: 'PLt7bG0K25iXjvB28Upp4YU_LvLS2MFbLr' },
-  ];
+  const streamUrl = (id: string, host: 5 | 3 = 5) => `https://ice${host}.somafm.com/${id}-128-mp3`;
 
   const KEY = 'locked-room/music/v1';
-  let service = $state<Service>('none');
   let stationIdx = $state(0);
   let playing = $state(false);
   let audio = $state<HTMLAudioElement>();
-  let boxW = $state(0); // surface width, for the slide distance
-  let dir = $state(1); // slide direction: +1 = new enters from the right
-  let ytIdx = $state(0); // selected YouTube playlist
-  const ytSrc = $derived(
-    `https://www.youtube-nocookie.com/embed/videoseries?list=${YT_PLAYLISTS[ytIdx].id}&rel=0`,
-  );
 
   const wrap = (i: number) => ((i % STATIONS.length) + STATIONS.length) % STATIONS.length;
   onMount(() => {
     try {
       const s = JSON.parse(localStorage.getItem(KEY) || '{}');
       if (typeof s.station === 'number') stationIdx = wrap(s.station);
-      if (typeof s.yt === 'number' && s.yt >= 0 && s.yt < YT_PLAYLISTS.length) ytIdx = s.yt;
     } catch {
       /* ignore */
     }
-    // start silent — browsers block autoplay and the room should open quiet.
+    // opens silent — browsers block autoplay and the room should start quiet.
   });
   const persist = () => {
-    try { localStorage.setItem(KEY, JSON.stringify({ station: stationIdx, yt: ytIdx })); } catch { /* ignore */ }
+    try { localStorage.setItem(KEY, JSON.stringify({ station: stationIdx })); } catch { /* ignore */ }
   };
-  function selectYt(i: number) {
-    ytIdx = i;
-    persist();
-  }
 
-  const idxOf = (s: Service) => CHIPS.findIndex((c) => c.id === s);
-  function pick(s: Service) {
-    const next: Service = s === service && s !== 'none' ? 'none' : s; // tap active → silence
-    if (next === service) return;
-    dir = idxOf(next) >= idxOf(service) ? 1 : -1; // slide toward the chip's side
-    if (service === 'radio' && next !== 'radio') {
-      audio?.pause();
-      playing = false;
-    }
-    service = next;
-  }
-
-  // Radio playback is fully IMPERATIVE (no reactive src attr) — binding src to
-  // stationIdx made the browser reset the element on a switch and drop playback.
-  function radioSrc() {
-    return STATIONS[stationIdx].url;
-  }
+  // Playback is fully imperative (no reactive src attr — that dropped playback on
+  // a station switch).
   function togglePlay() {
     if (!audio) return;
     if (playing) audio.pause();
     else {
-      if (!audio.src) audio.src = radioSrc();
+      if (!audio.src) audio.src = streamUrl(STATIONS[stationIdx].id);
       audio.play().catch(() => {});
     }
   }
@@ -98,136 +55,42 @@
     persist();
     if (!audio) return;
     const wasPlaying = playing;
-    audio.src = radioSrc();
+    audio.src = streamUrl(STATIONS[stationIdx].id);
     audio.load();
     if (wasPlaying) audio.play().catch(() => {}); // keep playing across the switch
   }
   function onAudioError() {
-    if (audio && audio.src === STATIONS[stationIdx].url) {
-      audio.src = STATIONS[stationIdx].alt; // fall back to the other mirror once
+    // primary mirror failed — fall back to the other host once
+    const primary = streamUrl(STATIONS[stationIdx].id);
+    if (audio && audio.src === primary) {
+      audio.src = streamUrl(STATIONS[stationIdx].id, 3);
       audio.load();
       if (playing) audio.play().catch(() => {});
     }
   }
-
-  const CHIPS: { id: Service; label: string }[] = [
-    { id: 'none', label: 'Silence' },
-    { id: 'radio', label: 'SomaFM radio' },
-    { id: 'spotify', label: 'Spotify' },
-    { id: 'youtube', label: 'YouTube' },
-    { id: 'local', label: 'Local (soon)' },
-  ];
 </script>
 
 <div class="dock">
-  <!-- one fixed glass frame; the active player slides in, the old slides out the
-       other way (ease-out), so off players are physically off the frame -->
-  <div class="surface" data-svc={service} bind:clientWidth={boxW}>
-    {#key service}
-      <div
-        class="slot"
-        in:fly={{ x: dir * (boxW || 300), duration: 380, easing: cubicOut }}
-        out:fly={{ x: -dir * (boxW || 300), duration: 380, easing: cubicOut }}
-      >
-        {#if service === 'radio'}
-          <div class="radiobar">
-            <button class="ctl play" onclick={togglePlay} aria-label={playing ? 'Pause' : 'Play'}>
-              {playing ? '❚❚' : '▶'}
-            </button>
-            <div class="now">
-              <span class="st-name">{STATIONS[stationIdx].name}</span>
-              <span class="st-desc">{STATIONS[stationIdx].desc} · SomaFM</span>
-            </div>
-            <button class="ctl" onclick={() => cycle(-1)} aria-label="Previous station">‹</button>
-            <button class="ctl" onclick={() => cycle(1)} aria-label="Next station">›</button>
-            <!-- svelte-ignore a11y_media_has_caption -->
-            <audio
-              bind:this={audio}
-              preload="none"
-              onerror={onAudioError}
-              onplaying={() => (playing = true)}
-              onpause={() => (playing = false)}
-            ></audio>
-          </div>
-        {:else if service === 'spotify'}
-          <iframe
-            class="fill"
-            title="Spotify player"
-            src={SPOTIFY}
-            allow="encrypted-media; autoplay; clipboard-write; fullscreen; picture-in-picture"
-            loading="lazy"
-          ></iframe>
-        {:else if service === 'youtube'}
-          <div class="yt">
-            <div class="yt-player">
-              <iframe
-                title="YouTube lofi radio"
-                src={ytSrc}
-                allow="autoplay; encrypted-media; picture-in-picture"
-                loading="lazy"
-                allowfullscreen
-              ></iframe>
-            </div>
-            <div class="yt-lists">
-              {#each YT_PLAYLISTS as pl, i (pl.id)}
-                <button class="yt-list" class:on={i === ytIdx} onclick={() => selectYt(i)}>
-                  {pl.name}
-                </button>
-              {/each}
-            </div>
-          </div>
-        {:else if service === 'local'}
-          <div class="empty">Local tracks — coming soon</div>
-        {:else}
-          <div class="empty muted" aria-hidden="true">🔇</div>
-        {/if}
-      </div>
-    {/key}
-  </div>
-
-  <div class="chips" role="tablist" aria-label="Music player">
-    {#each CHIPS as c (c.id)}
-      <button
-        class="chip {c.id}"
-        class:on={service === c.id}
-        role="tab"
-        aria-selected={service === c.id}
-        title={c.label}
-        aria-label={c.label}
-        onclick={() => pick(c.id)}
-      >
-        {@render chipIcon(c.id)}
-      </button>
-    {/each}
+  <div class="surface">
+    <button class="ctl play" class:playing onclick={togglePlay} aria-label={playing ? 'Pause' : 'Play'}>
+      {playing ? '❚❚' : '▶'}
+    </button>
+    <div class="now">
+      <span class="st-name">{STATIONS[stationIdx].name}</span>
+      <span class="st-desc">{STATIONS[stationIdx].desc} · SomaFM</span>
+    </div>
+    <button class="ctl" onclick={() => cycle(-1)} aria-label="Previous station">‹</button>
+    <button class="ctl" onclick={() => cycle(1)} aria-label="Next station">›</button>
+    <!-- svelte-ignore a11y_media_has_caption -->
+    <audio
+      bind:this={audio}
+      preload="none"
+      onerror={onAudioError}
+      onplaying={() => (playing = true)}
+      onpause={() => (playing = false)}
+    ></audio>
   </div>
 </div>
-
-{#snippet chipIcon(id: Service)}
-  <svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    {#if id === 'none'}
-      <path d="M4 9 H7 L12 5 V19 L7 15 H4 Z" fill="currentColor" stroke="none" />
-      <line x1="16" y1="9.5" x2="21" y2="14.5" />
-      <line x1="21" y1="9.5" x2="16" y2="14.5" />
-    {:else if id === 'radio'}
-      <path d="M15 7 L20 4" />
-      <rect x="3" y="7" width="18" height="12" rx="2" />
-      <circle cx="8" cy="13.5" r="2.4" />
-      <line x1="13.5" y1="11.5" x2="18" y2="11.5" />
-      <line x1="13.5" y1="15" x2="18" y2="15" />
-    {:else if id === 'spotify'}
-      <circle cx="12" cy="12" r="9" />
-      <path d="M7.4 9.6 q4.8 -1.3 9 0.9" />
-      <path d="M8 12.8 q4 -1 7 0.8" />
-      <path d="M8.6 15.8 q3 -0.7 5 0.5" />
-    {:else if id === 'youtube'}
-      <rect x="2" y="6" width="20" height="12" rx="3.5" />
-      <path d="M10 9.2 L15 12 L10 14.8 Z" fill="currentColor" stroke="none" />
-    {:else if id === 'local'}
-      <circle cx="7.5" cy="17" r="2.4" fill="currentColor" stroke="none" />
-      <path d="M9.9 17 V6 L18 4 V8" />
-    {/if}
-  </svg>
-{/snippet}
 
 <style>
   .dock {
@@ -236,118 +99,23 @@
     right: 7%;
     bottom: 3.5%;
     z-index: 5;
-    display: flex;
-    flex-direction: column;
-    gap: 1.4cqw;
     pointer-events: auto;
   }
-
-  /* the one shared box — same size for every service. Glass: translucent, a
-     hairline edge, a little blur. Quiet, not busy. */
+  /* a quiet glass bar — neutral, sits under the lock without shouting */
   .surface {
-    position: relative;
-    width: 100%;
-    height: 16cqw;
-    min-height: 120px;
+    height: 13cqw;
+    min-height: 96px;
+    display: flex;
+    align-items: center;
+    gap: 1.6cqw;
+    padding: 0 2.4cqw;
     border-radius: 2cqw;
-    overflow: hidden;
     background: rgba(255, 255, 255, 0.045);
     border: 1px solid rgba(255, 255, 255, 0.11);
     backdrop-filter: blur(7px);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 1.5cqw 4cqw -2cqw #000;
   }
-
-  /* the sliding layer — one per active service; clipped by .surface so the
-     outgoing/incoming players are off the frame */
-  .slot {
-    position: absolute;
-    inset: 0;
-  }
-
-  /* players fill the slot */
-  .fill {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    border: 0;
-  }
-  /* YouTube: the embed is the LEFT of the box; playlist buttons fill the right */
-  .yt {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    gap: 1.4cqw;
-    padding: 1.4cqw;
-  }
-  .yt-player {
-    flex: 0 0 auto;
-    height: 100%;
-    aspect-ratio: 16 / 9;
-    border-radius: 1.2cqw;
-    overflow: hidden;
-    background: #000;
-  }
-  .yt-player iframe {
-    display: block;
-    width: 100%;
-    height: 100%;
-    border: 0;
-  }
-  .yt-lists {
-    flex: 1;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.9cqw;
-    align-content: center;
-    min-width: 0;
-  }
-  .yt-list {
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    background: rgba(255, 255, 255, 0.05);
-    color: #ccd3df;
-    border-radius: 1.2cqw;
-    padding: 1.1cqw 1cqw;
-    font-size: 1.8cqw;
-    line-height: 1.1;
-    cursor: pointer;
-    transition: border-color 0.15s, color 0.15s, background 0.15s;
-  }
-  .yt-list:hover {
-    border-color: #ff4d4d;
-    color: #fff;
-  }
-  .yt-list.on {
-    border-color: #ff4d4d;
-    color: #fff;
-    background: rgba(255, 77, 77, 0.14);
-  }
-  .empty {
-    position: absolute;
-    inset: 0;
-    display: grid;
-    place-items: center;
-    color: #8b94a3;
-    font-family: ui-monospace, Consolas, monospace;
-    text-transform: uppercase;
-    letter-spacing: 0.2em;
-    font-size: 1.9cqw;
-  }
-  .empty.muted {
-    font-size: 4.5cqw;
-    opacity: 0.22;
-    filter: grayscale(1);
-  }
-
-  /* ── SomaFM transport: uniform compact icon buttons, station name between ── */
-  .radiobar {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    gap: 1.6cqw;
-    padding: 0 2.2cqw;
-  }
+  /* uniform glass icon buttons; the play button takes a faint fill while playing */
   .ctl {
     flex: none;
     width: 7.5cqw;
@@ -364,18 +132,15 @@
     transition: border-color 0.15s, color 0.15s, background 0.15s;
   }
   .ctl:hover {
-    border-color: #f5b83c;
+    border-color: rgba(255, 255, 255, 0.4);
     color: #fff;
   }
   .ctl.play {
-    color: #2a1d02;
-    background: #f5b83c;
-    border-color: transparent;
     font-size: 2.6cqw;
   }
-  .ctl.play:hover {
-    filter: brightness(1.1);
-    color: #2a1d02;
+  .ctl.play.playing {
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
   }
   .now {
     flex: 1;
@@ -396,46 +161,4 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
-
-  /* ── chip carousel ── */
-  .chips {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 1.2cqw;
-    flex-wrap: wrap;
-  }
-  /* small icon-only chips, all the same square so the row is even */
-  .chip {
-    flex: none;
-    width: 4.6cqw;
-    height: 4.6cqw;
-    display: grid;
-    place-items: center;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    background: rgba(20, 24, 31, 0.55);
-    color: #aab2c0;
-    border-radius: 1.2cqw;
-    cursor: pointer;
-    backdrop-filter: blur(4px);
-    transition: color 0.15s, border-color 0.15s, background 0.15s;
-  }
-  /* the icon fills most of the small chip (little padding) */
-  .ci {
-    width: 3.4cqw;
-    height: 3.4cqw;
-    display: block;
-  }
-  .chip:hover {
-    color: #e8edf7;
-    border-color: rgba(255, 255, 255, 0.28);
-  }
-  .chip.on {
-    background: rgba(255, 255, 255, 0.08);
-  }
-  .chip.radio.on { color: #ffc94f; border-color: #f5b83c; box-shadow: 0 0 0 1px #f5b83c; }
-  .chip.spotify.on { color: #1ed760; border-color: #1db954; box-shadow: 0 0 0 1px #1db954; }
-  .chip.youtube.on { color: #ff5c5c; border-color: #ff4d4d; box-shadow: 0 0 0 1px #ff4d4d; }
-  .chip.local.on { color: #e6b65a; border-color: #c8923f; box-shadow: 0 0 0 1px #c8923f; }
-  .chip.none.on { color: #cdd4df; border-color: #5b636e; }
 </style>
