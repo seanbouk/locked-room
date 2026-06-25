@@ -138,10 +138,11 @@
      room remounts. */
   .panel {
     position: relative;
-    /* the fixed game box: capped at the 960x1280 design size so it stops growing
-       (and stops scaling the HUD/dock up) on big screens, and contains to fit
-       smaller/slender windows. Everything inside is sized in cqw, bound to this. */
-    width: min(100%, 960px, calc(100dvh * 372 / 496));
+    /* the game box: scales to FIT its parent (no max cap), keeping 3:4, so it
+       always touches the top+bottom or left+right — no dead margin. Everything
+       inside is sized in cqw, bound to this box, so the whole game scales as one
+       uniform unit. */
+    width: min(100%, calc(100dvh * 372 / 496));
     aspect-ratio: 372 / 496;
     container-type: inline-size;
     overflow: hidden;
