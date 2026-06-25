@@ -460,12 +460,40 @@
     if (light?.enabled) pulse(phase === 'play' ? 900 : 2600);
   });
 
+  // Rough wedge size (0..1) from its path bbox — drives drop pitch/volume so big
+  // pieces land low + loud, small ones high + quiet. Approximate is fine: it's
+  // only for variety.
+  function wedgeSize(d: string): number {
+    const n = d.match(/-?\d+(?:\.\d+)?/g);
+    if (!n) return 0.5;
+    let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
+    for (let i = 0; i + 1 < n.length; i += 2) {
+      const x = +n[i], y = +n[i + 1];
+      if (x < minx) minx = x;
+      if (x > maxx) maxx = x;
+      if (y < miny) miny = y;
+      if (y > maxy) maxy = y;
+    }
+    const area = Math.max(0, maxx - minx) * Math.max(0, maxy - miny);
+    return Math.max(0, Math.min(1, Math.sqrt(area) / 30));
+  }
+  // Schedule a sized drop sound for every wedge in the end cascade, each at its
+  // own stagger delay + the bounce's first-contact (~0.22s into the tween).
+  function scheduleDropFoley() {
+    for (const [k, idx] of dropOrder) {
+      const dash = k.indexOf('-');
+      const ai = +k.slice(0, dash);
+      const pc = drawn.angles[ai]?.pieces[+k.slice(dash + 1)];
+      if (pc) sfx.drop(wedgeSize(pc.d), (idx * DROP_STAGGER) / 1000 + 0.22);
+    }
+  }
+
   // End-sequence foley: one sound per stage of the lock opening.
   $effect(() => {
     switch (phase) {
-      case 'drop': sfx.thud(); break; // wedges cascade down
+      case 'drop': scheduleDropFoley(); break; // every wedge lands (sized)
       case 'spin': sfx.slide(); break; // pins turn a quarter
-      case 'circleBack': sfx.thud(); break; // the lock seats home
+      case 'circleBack': sfx.lockSlide(); break; // the whole lock slides/seats
       case 'doors': sfx.door(); break; // doors slide open
       case 'flash': sfx.thud(); break; // it opens
     }
@@ -637,6 +665,12 @@
       for (const id of p.angleIds) sb.set(id, p.keyId);
       solvedBy = sb;
       sfx.latch(); // a key bit and solved something
+      // ...and each freshly-solved wedge drops back (sized like the cascade)
+      for (const id of newIds) {
+        if (givenSet.has(id)) continue;
+        const pc = drawn.angles.find((x) => x.id === id)?.pieces.find((p) => p.marked);
+        if (pc) sfx.drop(wedgeSize(pc.d), 0.2);
+      }
       flash = new Set(newIds);
       setTimeout(() => (flash = new Set()), 900);
     } else {
@@ -648,6 +682,7 @@
 
   // ── Chain lifecycle ─────────────────────────────────────────────────────────
   function startChain(keyId: string, anchor: string) {
+    sfx.clunk(); // first part of a two-part key latches onto its anchor
     chain = { keyId, anchor };
     ropeBeads = makeRope(vpos(anchor).x, vpos(anchor).y, { x: drawn.circle.cx, y: drawn.circle.cy });
     grabbing = false;

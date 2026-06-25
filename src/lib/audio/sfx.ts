@@ -156,10 +156,17 @@ export const sfx = {
     body(t, { f0: 116, f1: 100, drop: 0.04, dur: 0.12, gain: 1.15 });
     transient(t, { type: 'lowpass', freq: 700, q: 0.7, dur: 0.03, gain: 0.85 });
   },
-  /** pins turning a quarter-turn (gentle downward drift, no upward pitch) */
+  /** pins turning a quarter-turn (gentle downward drift; darker + quieter) */
   slide() {
     if (!enabled || !out()) return;
-    friction(when(), { from: 950, to: 780, dur: 0.45, q: 4, gain: 0.4, grain: 0.3 });
+    friction(when(), { from: 720, to: 560, dur: 0.45, q: 3.5, gain: 0.27, grain: 0.3 });
+  },
+  /** the WHOLE lock sliding/seating — deeper, longer and louder than a pin */
+  lockSlide() {
+    if (!enabled || !out()) return;
+    const t = when();
+    friction(t, { from: 175, to: 110, dur: 0.85, q: 2.5, gain: 0.6, grain: 0.18 });
+    body(t, { f0: 82, f1: 52, drop: 0.5, dur: 0.85, gain: 0.4 });
   },
   /** the doors sliding open at the end */
   door() {
@@ -167,6 +174,24 @@ export const sfx = {
     const t = when();
     friction(t, { from: 240, to: 540, dur: 0.75, q: 3, gain: 0.5, grain: 0.25 });
     body(t, { f0: 90, f1: 60, drop: 0.3, dur: 0.75, gain: 0.22 });
+  },
+  /** one wedge dropping back. `size` 0..1 (small→high+quiet, large→low+loud,
+   *  non-linear); `delay` seconds so a cascade can be scheduled in one go. The
+   *  drop bounces, so a couple of quieter, higher taps follow the impact. */
+  drop(size = 0.5, delay = 0) {
+    if (!enabled || !out()) return;
+    const c = ctx();
+    if (!c) return;
+    const s = Math.max(0, Math.min(1, size));
+    const t = c.currentTime + 0.02 + Math.max(0, delay);
+    const f0 = 120 + Math.pow(1 - s, 1.3) * 180; // small ≈300Hz, large ≈120Hz
+    const gain = 0.2 + s * 0.5; // small quieter, large louder
+    body(t, { f0, f1: f0 * 0.55, drop: 0.04, dur: 0.1 + s * 0.1, gain });
+    transient(t, { type: 'lowpass', freq: 800 + (1 - s) * 1500, q: 0.8, dur: 0.012, gain: 0.22 + s * 0.18 });
+    const tap = (dt: number, lvl: number) =>
+      transient(t + dt, { type: 'bandpass', freq: f0 * 3, q: 2, dur: 0.01, gain: lvl });
+    tap(0.13, 0.1 + s * 0.1); // the bounce
+    tap(0.21, 0.05 + s * 0.05); // settle
   },
   /** mute/unmute all sfx */
   setMuted(muted: boolean) {
