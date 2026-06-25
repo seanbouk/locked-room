@@ -62,9 +62,8 @@
       />
     {/key}
     <MusicDock />
-  </div>
 
-  {#if showRooms}
+    {#if showRooms}
     <div class="modal-bg" onclick={() => (showRooms = false)} role="presentation">
       <div class="modal" onclick={(e) => e.stopPropagation()} role="dialog" aria-label="Rooms">
         <div class="modal-head">
@@ -101,6 +100,7 @@
       </div>
     </div>
   {/if}
+  </div>
 
   {#if rewardKeyId}
     <!-- the round has ended on white (the lock seats and floods); the reward
@@ -148,27 +148,32 @@
     overflow: hidden;
   }
 
+  /* the Rooms overlay is confined to the play panel (its parent) and scales
+     with it: absolute inset:0 sits exactly over the 3:4 playfield, and every
+     size is in cqw so the window grows/shrinks with the box, like the HUD. */
   .modal-bg {
-    position: fixed;
+    position: absolute;
     inset: 0;
     background: rgba(4, 7, 14, 0.7);
     backdrop-filter: blur(3px);
     display: grid;
     place-items: center;
-    padding: 1rem;
+    padding: 4cqw;
     z-index: 100;
     animation: fade 0.2s ease;
   }
   .modal {
-    width: min(560px, 100%);
+    width: 100%;
+    max-height: 100%;
     background: #111a2e;
     border: 1px solid #2c3a5e;
-    border-radius: 16px;
-    padding: 1.2rem 1.4rem;
+    border-radius: 2.4cqw;
+    padding: 3cqw 3.2cqw;
     display: flex;
     flex-direction: column;
-    gap: 0.9rem;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+    gap: 2cqw;
+    box-shadow: 0 2cqw 6cqw rgba(0, 0, 0, 0.55);
+    overflow: hidden; /* header/kit pinned; the room grid scrolls inside */
   }
   .modal-head {
     display: flex;
@@ -177,26 +182,32 @@
   }
   .modal-head h2 {
     margin: 0;
+    font-size: 4cqw;
   }
   .x {
     background: none;
     border: none;
     color: #8aa0cc;
-    font-size: 1.1rem;
+    font-size: 3.4cqw;
+    line-height: 1;
     cursor: pointer;
   }
   .rooms {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 0.6rem;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.6cqw;
+    overflow-y: auto;
+    min-height: 0; /* allow shrink inside the flex column so it can scroll */
+    flex: 1 1 auto;
+    padding-right: 1cqw; /* breathing room beside the scrollbar */
   }
   .room {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 0.2rem;
-    padding: 0.7rem;
-    border-radius: 11px;
+    gap: 0.4cqw;
+    padding: 1.4cqw;
+    border-radius: 1.6cqw;
     border: 1px solid #2c3a5e;
     background: #141d33;
     color: #e8edf7;
@@ -214,34 +225,36 @@
     border-color: #6ee1a5;
   }
   .room.current {
-    box-shadow: 0 0 0 2px rgba(255, 224, 122, 0.4);
+    box-shadow: 0 0 0 0.3cqw rgba(255, 224, 122, 0.4);
   }
   .rnum {
-    font-size: 0.72rem;
+    font-size: 1.9cqw;
     opacity: 0.5;
   }
   .rtitle {
     font-weight: 600;
+    font-size: 2.2cqw;
+    line-height: 1.15;
   }
   .rstate {
-    font-size: 0.78rem;
+    font-size: 1.9cqw;
     opacity: 0.7;
   }
   .kit {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.4rem;
+    gap: 1cqw;
     align-items: center;
   }
   .kit-label {
-    font-size: 0.7rem;
+    font-size: 1.8cqw;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     opacity: 0.5;
   }
   .kchip {
-    font-size: 0.8rem;
-    padding: 0.25rem 0.55rem;
+    font-size: 2cqw;
+    padding: 0.6cqw 1.4cqw;
     border-radius: 999px;
     background: rgba(255, 224, 122, 0.12);
     border: 1px solid rgba(255, 224, 122, 0.4);
@@ -253,7 +266,7 @@
     border: none;
     color: #8aa0cc;
     cursor: pointer;
-    font-size: 0.78rem;
+    font-size: 1.9cqw;
     opacity: 0.6;
     padding: 0;
   }
