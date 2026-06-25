@@ -54,7 +54,10 @@
   let flash = $state(new Set<string>());
   let appliedLabels = $state(new Set<string>());
   let toast = $state('');
-  let shake = $state(false);
+  // a wrong drop jitters the ITEM it landed on (a pin, or a triangle) — never the
+  // whole screen, which won't exist once the game fills its frame.
+  let shakePins = $state(new Set<string>());
+  let shakeTri = $state<string[]>([]);
 
   // Level-transition state machine. Recede works PER SEGMENT now: solving an
   // angle drops just its (brass) wedge. On the lock opening: drop the remaining
@@ -623,11 +626,22 @@
     return ropeBeads.map((b) => ({ x: b.x, y: b.y }));
   });
 
-  function reject() {
+  // Reject feedback: the reject sound, and a brief jitter on whatever it was
+  // dropped on — `pins` (angle ids) or a `tri` (the triangle's corner points).
+  // No target (dropped in empty space) = just the sound.
+  function reject(target?: { pins?: string[]; tri?: string[] }) {
     sfx.reject();
-    shake = true;
-    setTimeout(() => (shake = false), 260);
+    if (target?.pins?.length) {
+      shakePins = new Set(target.pins);
+      setTimeout(() => (shakePins = new Set()), 320);
+    } else if (target?.tri?.length) {
+      shakeTri = target.tri;
+      setTimeout(() => (shakeTri = []), 320);
+    }
   }
+  const shakeTriPoly = $derived(
+    shakeTri.length ? shakeTri.map((v) => { const p = ptPos.get(v)!; return `${p.x},${p.y}`; }).join(' ') : '',
+  );
 
   // Is there any unplayed placement that would solve something right now?
   function anyProductiveMove(): boolean {
@@ -646,7 +660,7 @@
     if (lock.probe(p).length === 0 && anyProductiveMove()) {
       endChain();
       preview = null;
-      reject();
+      reject({ pins: p.angleIds });
       toast = 'Not yet — solve what it needs first.';
       setTimeout(() => (toast = ''), 2000);
       return;
@@ -758,7 +772,7 @@
       const t = el?.closest('svg') ? nearestTriangle(toSvg(e.clientX, e.clientY)) : null;
       const p = t ? placementForTriangle(t.verts) : null;
       if (p) apply(p);
-      else reject();
+      else reject(t ? { tri: t.verts } : undefined); // jitter the triangle it landed on
       return;
     }
 
@@ -768,7 +782,7 @@
     if (arityOf(d.keyId) === 1) {
       const p = placementsFor(d.keyId).find((q) => q.angleIds.includes(A));
       if (p) apply(p);
-      else reject();
+      else reject({ pins: [A] }); // jitter the pin it landed on
     } else {
       // A two-part key anchors on ANY node you drop it on — don't reject up front.
       // You then drag the loose end to the second node, and it only fails (in
@@ -829,7 +843,7 @@
 
 <svelte:window onkeydown={onKeydown} />
 
-<div class="screen {phase}" class:shake>
+<div class="screen {phase}">
       <svg bind:this={svgEl} viewBox={drawn.viewBox} class:open={transitioning} role="img" aria-label="lock puzzle">
         <defs>
           <!-- gunmetal: dark blue-grey steel, so the screen-blended god-light
@@ -961,6 +975,7 @@
                wedges flush back; the inner group puts the pieces at their real
                coords. Matching the translate to the wedge scale is what keeps
                the pin dead still as the lock recedes. -->
+          <g class="pin-jitter" class:shaking={shakePins.has(a.id)}>
           <g class="pin-back" transform="translate({rcx} {rcy})">
             <g class="pin-spin" transform={pinTurn}>
               <g class="pin-back" transform="translate({(-a.vx * wedgeBack).toFixed(3)} {(-a.vy * wedgeBack).toFixed(3)})">
@@ -986,6 +1001,7 @@
                 {/each}
               </g>
             </g>
+          </g>
           </g>
         {/each}
 
@@ -1020,6 +1036,9 @@
 
         {#if preview}
           <polygon points={previewPoly} class="tri-preview" />
+        {/if}
+        {#if shakeTri.length}
+          <polygon points={shakeTriPoly} class="tri-shake" />
         {/if}
 
 
@@ -1138,16 +1157,29 @@
     touch-action: none;
     container-type: inline-size;
   }
-  .screen.shake {
-    animation: shake 0.26s;
+  /* wrong-drop jitter, applied to the ITEM dropped on (a pin or a triangle).
+     translate values are SVG user units; the wrapper carries no base transform
+     so this composes cleanly with the pin's inner transforms. */
+  @keyframes itemShake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-3.5px); }
+    40% { transform: translateX(3.5px); }
+    60% { transform: translateX(-2px); }
+    80% { transform: translateX(2px); }
   }
-  @keyframes shake {
-    25% {
-      transform: translateX(-5px);
-    }
-    75% {
-      transform: translateX(5px);
-    }
+  .pin-jitter.shaking {
+    animation: itemShake 0.3s ease;
+  }
+  .tri-shake {
+    fill: rgba(255, 92, 92, 0.16);
+    stroke: #ff5c5c;
+    stroke-width: 1.6;
+    stroke-linejoin: round;
+    pointer-events: none;
+    animation: itemShake 0.3s ease, triFade 0.32s ease forwards;
+  }
+  @keyframes triFade {
+    to { opacity: 0; }
   }
   svg {
     position: absolute;
