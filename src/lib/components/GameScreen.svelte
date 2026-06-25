@@ -720,10 +720,13 @@
       flash = new Set(newIds);
       setTimeout(() => (flash = new Set()), 900);
     } else {
-      // valid but nothing resolves yet — mark the touched segments as "loosened"
-      // (tinted to this key's colour) so progress reads on the board.
+      // valid but nothing resolves yet — mark EVERY touched node as "loosened"
+      // (tinted to this key's colour) so progress reads on the board. Colour all
+      // of them, including a given vertex: a triangle key engages all three of
+      // its angles, so all three should carry the mark (a freshly-solved
+      // non-given wedge still keeps its brass — the template guards that).
       const lb = new Map(loosenedBy);
-      for (const id of p.angleIds) if (!solved.has(id) && !givenSet.has(id)) lb.set(id, p.keyId);
+      for (const id of p.angleIds) lb.set(id, p.keyId);
       loosenedBy = lb;
       sfx.clunk(); // the key engaged / loosened it
     }
