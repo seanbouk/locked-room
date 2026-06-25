@@ -74,7 +74,8 @@ describe('level progression', () => {
   });
 
   it('is beatable one productive move at a time, with no dead-ends', () => {
-    for (const lvl of LEVELS) {
+    // Press-to-open rooms (no targets) open on a tap, not deduction — skip them.
+    for (const lvl of LEVELS.filter((l) => l.puzzle.targets.length > 0)) {
       const r = greedyPlaythrough(lvl.puzzle);
       expect(r.open, `level ${lvl.id} (${lvl.title}) stuck=${r.stuck}`).toBe(true);
       expect(r.steps, `level ${lvl.id} should need at least one move`).toBeGreaterThan(0);

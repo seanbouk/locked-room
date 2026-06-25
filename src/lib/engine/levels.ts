@@ -4,8 +4,9 @@
 // origin, so the figure's ground truth is clean. Every level is checked by
 // levels.test.ts (via isSolvable) so we can never ship an unbeatable room.
 //
-// Key progression: the player starts with only the Right-Angle key and is
-// awarded a new key on completing certain rooms, then uses it in later rooms.
+// Key progression: the player starts with NO keys. Room 1 is a press-to-open
+// threshold that awards the Right-Angle key; each later room is solved with the
+// keys won so far and awards the next one.
 
 import type { Puzzle } from './puzzle';
 
@@ -19,7 +20,7 @@ export interface Level {
   award?: string;
 }
 
-export const STARTING_KEYS = ['semicircle'];
+export const STARTING_KEYS: string[] = [];
 
 const R = 100;
 const at = (deg: number) => {
@@ -28,8 +29,31 @@ const at = (deg: number) => {
 };
 const O = { id: 'O', x: 0, y: 0 };
 
+// Room 1 — the threshold. No pins, no theorem: just the lock itself, trembling.
+// Press it and it opens (handled like the end-of-puzzle release in GameScreen),
+// and you win the Right-Angle key you'll need from Room 2 on. The two rim points
+// carry no angle/segment — they only give the disc a clean face to render.
 const level1: Level = {
   id: 1,
+  title: 'The Threshold',
+  intro: 'No theorem yet — this door only wants a push. Press the lock to open it.',
+  puzzle: {
+    circle: { cx: 0, cy: 0, r: R },
+    points: [
+      { id: 'A', ...at(180) },
+      { id: 'B', ...at(0) },
+    ],
+    segments: [],
+    angles: [],
+    givens: [],
+    targets: [],
+    keys: [],
+  },
+  award: 'semicircle',
+};
+
+const level2: Level = {
+  id: 2,
   title: 'The First Door',
   intro: 'A line straight through the centre. The angle that touches the rim is hiding something.',
   puzzle: {
@@ -52,8 +76,8 @@ const level1: Level = {
   award: 'triangle-sum',
 };
 
-const level2: Level = {
-  id: 2,
+const level3: Level = {
+  id: 3,
   title: 'Two of Three',
   intro: 'One angle is given, one you just learned to find. The third must follow.',
   puzzle: {
@@ -80,8 +104,8 @@ const level2: Level = {
   award: 'same-segment',
 };
 
-const level3: Level = {
-  id: 3,
+const level4: Level = {
+  id: 4,
   title: 'Mirror, Mirror',
   intro: 'Two angles look at the same chord from the same side. They are not so different.',
   puzzle: {
@@ -110,8 +134,8 @@ const level3: Level = {
   award: 'angle-at-centre',
 };
 
-const level4: Level = {
-  id: 4,
+const level5: Level = {
+  id: 5,
   title: 'From the Centre',
   intro: 'The angle at the heart of the circle is grander than the one at the rim.',
   puzzle: {
@@ -134,8 +158,8 @@ const level4: Level = {
   award: 'isosceles-radii',
 };
 
-const level5: Level = {
-  id: 5,
+const level6: Level = {
+  id: 6,
   title: 'Balanced on Two Spokes',
   intro: 'Two radii, one triangle. The base must share the load evenly.',
   puzzle: {
@@ -157,8 +181,8 @@ const level5: Level = {
   },
 };
 
-const level6: Level = {
-  id: 6,
+const level7: Level = {
+  id: 7,
   title: 'The Inner Sanctum',
   intro: 'Every key you carry has its part to play. Open it.',
   puzzle: {
@@ -188,4 +212,4 @@ const level6: Level = {
   },
 };
 
-export const LEVELS: Level[] = [level1, level2, level3, level4, level5, level6];
+export const LEVELS: Level[] = [level1, level2, level3, level4, level5, level6, level7];

@@ -27,6 +27,10 @@
 
   const lock = new Lock(level.puzzle);
   const drawn = drawPuzzle(level.puzzle);
+  // A "press-to-open" room: no pins, no theorem — just the lock itself. It opens
+  // on a tap, reusing the end-of-puzzle release, so we drop straight into the
+  // 'jiggle' phase (the trembling lock + tap target) instead of 'play'.
+  const tutorial = drawn.angles.length === 0;
   const givenSet = new Set(level.puzzle.givens);
   const targetSet = new Set(level.puzzle.targets);
   const angleMap = new Map(drawn.angles.map((a) => [a.id, a]));
@@ -72,7 +76,9 @@
   // body recedes and opens — see startTransition / finishTransition.
   type Phase = 'intro' | 'play' | 'drop' | 'spin' | 'jiggle' | 'circleBack' | 'rotate' | 'doors' | 'flash';
   let phase = $state<Phase>('intro');
-  setTimeout(() => phase === 'intro' && (phase = 'play'), 40); // fade in from white
+  // fade in from white, then play — or, for a press-to-open room, straight into
+  // the trembling 'jiggle' that waits for the tap.
+  setTimeout(() => phase === 'intro' && (phase = tutorial ? 'jiggle' : 'play'), 40);
   const transitioning = $derived(phase !== 'play' && phase !== 'intro');
   // From 'drop' on, every wedge is down; from 'spin' on, every pin is turned.
   const dropping = $derived(phase !== 'play' && phase !== 'intro');

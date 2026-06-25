@@ -5,8 +5,8 @@ import { LEVELS } from './levels';
 const puzzleOf = (id: number) => LEVELS.find((l) => l.id === id)!.puzzle;
 
 describe('rule ordering (probe)', () => {
-  it('room 2: triangle is premature until the right angle is found', () => {
-    const lock = new Lock(puzzleOf(2));
+  it('room 3: triangle is premature until the right angle is found', () => {
+    const lock = new Lock(puzzleOf(3));
     const tri = lock.availablePlacements().find((p) => p.keyId === 'triangle-sum')!;
     const semi = lock.availablePlacements().find((p) => p.keyId === 'semicircle')!;
 
@@ -22,8 +22,8 @@ describe('rule ordering (probe)', () => {
     expect(next).not.toContain('ACB');
   });
 
-  it('room 5: a forced combination — neither rule resolves alone', () => {
-    const lock = new Lock(puzzleOf(5));
+  it('room 6: a forced combination — neither rule resolves alone', () => {
+    const lock = new Lock(puzzleOf(6));
     const iso = lock.availablePlacements().find((p) => p.keyId === 'isosceles-radii')!;
     const tri = lock.availablePlacements().find((p) => p.keyId === 'triangle-sum')!;
 
