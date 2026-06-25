@@ -988,15 +988,21 @@
                 {/if}
                 {#each a.pieces as pc, j (j)}
                   {@const dn = pieceDown(ai, j)}
-                  {@const loosen =
-                    !debugTint && pc.marked && !given && !solved.has(a.id) && loosenedBy.get(a.id)}
+                  <!-- a marked segment a key has ACTED on takes that key's colour:
+                       loosened (not yet solved) OR a known/given end of a 2-part key,
+                       so both ends carry the mark. A freshly-solved non-given wedge
+                       keeps its brass drop/flash. -->
+                  {@const actedKey =
+                    pc.marked && (given || !solved.has(a.id))
+                      ? (solvedBy.get(a.id) ?? loosenedBy.get(a.id))
+                      : undefined}
                   <path
                     d={pc.d}
                     class="pin-piece"
-                    class:brass={!debugTint && (given || pc.marked) && !loosen}
+                    class:brass={!debugTint && (given || pc.marked) && !actedKey}
                     class:lit={!debugTint && fresh && pc.marked}
                     class:down={dn}
-                    style:fill={debugTint ? tintColor(pinBase[ai] + j) : loosen ? KEY_COLORS[loosen] : null}
+                    style:fill={debugTint ? tintColor(pinBase[ai] + j) : actedKey ? KEY_COLORS[actedKey] : null}
                     style:transition-delay={phase === 'drop' ? dropDelayMs(ai, j) : '0ms'}
                     transform={`scale(${dn ? wedgeBack : 1})`}
                     filter="url(#bevel)"
