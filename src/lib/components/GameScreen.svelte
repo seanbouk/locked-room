@@ -831,7 +831,6 @@
     if (e.key === 'f') showCounter = !showCounter;
   }
 
-  const chainName = $derived(chain ? ALL_KEYS[chain.keyId].name : '');
 </script>
 
 <svelte:window onkeydown={onKeydown} />
@@ -1097,17 +1096,6 @@
       </div>
 
       <div class="hud-bottom">
-        {#if chain && !failing}
-          <div class="prompt">
-            Drag the <b>{chainName}</b>’s loose end onto the part it links to.
-            <button class="cancel" onclick={endChain}>✕ cancel</button>
-          </div>
-        {:else if drag?.keyId === 'triangle-sum'}
-          <div class="prompt">Hover a triangle — its three corners light up.</div>
-        {:else}
-          <div class="prompt subtle">Drag a key onto the lock. It only bites where its rule holds.</div>
-        {/if}
-
         <div class="tray">
           {#each allKeys as k (k.id)}
             {@const locked = !isUnlocked(k.id)}
@@ -1263,9 +1251,7 @@
     padding: 1cqw 2cqw;
     pointer-events: none;
   }
-  .hud-bottom .prompt,
-  .hud-bottom .tray,
-  .hud-bottom .cancel {
+  .hud-bottom .tray {
     pointer-events: auto;
   }
 
@@ -1401,26 +1387,6 @@
   }
   .grab:active {
     cursor: grabbing;
-  }
-
-  .prompt {
-    text-align: center;
-    font-size: 2cqw;
-    min-height: 2.8cqw;
-    color: #1c222c;
-    font-weight: 600;
-    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
-  }
-  .prompt.subtle {
-    opacity: 0.4;
-  }
-  .cancel {
-    margin-left: 1cqw;
-    background: none;
-    border: none;
-    color: #ff9b9b;
-    cursor: pointer;
-    font-size: 1.9cqw;
   }
 
   .tray {
