@@ -6,6 +6,7 @@
   import { ALL_KEYS, type Placement } from '../engine/theorems';
   import { GodLight } from '../render/godlight';
   import { KEY_COLORS } from '../render/keyStyle';
+  import { sfx } from '../audio/sfx';
   import KeyIcon from './KeyIcon.svelte';
   import type { Level } from '../engine/levels';
 
@@ -459,6 +460,17 @@
     if (light?.enabled) pulse(phase === 'play' ? 900 : 2600);
   });
 
+  // End-sequence foley: one sound per stage of the lock opening.
+  $effect(() => {
+    switch (phase) {
+      case 'drop': sfx.thud(); break; // wedges cascade down
+      case 'spin': sfx.slide(); break; // pins turn a quarter
+      case 'circleBack': sfx.thud(); break; // the lock seats home
+      case 'doors': sfx.door(); break; // doors slide open
+      case 'flash': sfx.thud(); break; // it opens
+    }
+  });
+
   // ── Transition trace (dev) ──────────────────────────────────────────────────
   // Logs the SETTLED geometry of the lock and a sample pin at each phase, so we
   // can discuss what moves with shared numbers. Coords are viewBox units (puzzle
@@ -584,6 +596,7 @@
   });
 
   function reject() {
+    sfx.reject();
     shake = true;
     setTimeout(() => (shake = false), 260);
   }
@@ -623,6 +636,7 @@
       const sb = new Map(solvedBy);
       for (const id of p.angleIds) sb.set(id, p.keyId);
       solvedBy = sb;
+      sfx.latch(); // a key bit and solved something
       flash = new Set(newIds);
       setTimeout(() => (flash = new Set()), 900);
     } else {
@@ -652,6 +666,7 @@
   // end a beat later, then clear once it's fallen off-screen.
   function failChain(pt: { x: number; y: number }) {
     if (!chain || failing) return;
+    sfx.reject(); // wrong node — the key comes off
     failPt = pt;
     failing = true;
     failHeld = true;
@@ -730,6 +745,7 @@
   function startKeyDrag(e: PointerEvent, keyId: string) {
     if (!isUnlocked(keyId) || chain) return;
     e.preventDefault();
+    sfx.clunk(); // lifting a key off the tray
     drag = { keyId, x: e.clientX, y: e.clientY };
     window.addEventListener('pointermove', onKeyMove);
     window.addEventListener('pointerup', onKeyUp);
