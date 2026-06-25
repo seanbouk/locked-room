@@ -809,8 +809,12 @@
     window.removeEventListener('pointerup', onHandleUp);
     grabbing = false;
     if (!chain) return;
-    const el = document.elementFromPoint(e.clientX, e.clientY);
-    const angleEl = el?.closest('[data-angle]');
+    // the chain layer sits on top, so the grab/rope would shadow the node under
+    // the cursor — scan the whole hit-stack for the drop target instead.
+    const angleEl = document
+      .elementsFromPoint(e.clientX, e.clientY)
+      .map((el) => el.closest('[data-angle]'))
+      .find(Boolean);
     if (!angleEl) return;
     const B = angleEl.getAttribute('data-angle')!;
     if (B === chain.anchor) return;
@@ -1049,8 +1053,18 @@
           {/if}
         {/each}
 
-        <!-- physics chain for a 2-part key -->
-        {#if chain && chainPts.length}
+        <!-- invisible drop targets, on top so elementFromPoint finds them -->
+        {#each drawn.angles as a (a.id)}
+          <circle cx={a.vx} cy={a.vy} r="26" class="hit" data-angle={a.id} />
+        {/each}
+      </svg>
+
+      <!-- the 2-part key's chain, in its own layer ABOVE the HUD (same viewBox)
+           so the handle can be grabbed even where it crosses the key tray, and
+           isn't hidden behind the buttons. pointer-events: none except the grab,
+           so drops still fall through to the .hit targets below. -->
+      {#if chain && chainPts.length}
+        <svg class="chain-layer" viewBox={drawn.viewBox} aria-hidden="true">
           <polyline points={chainPts.map((p) => `${p.x},${p.y}`).join(' ')} class="rope" />
           {#each chainPts as p, i (i)}
             {@const isHandle = i === chainPts.length - 1}
@@ -1067,13 +1081,8 @@
             {@const h = chainPts[chainPts.length - 1]}
             <circle cx={h.x} cy={h.y} r="18" class="grab" onpointerdown={startHandleGrab} role="button" tabindex="-1" aria-label="chain end" />
           {/if}
-        {/if}
-
-        <!-- invisible drop targets, on top so elementFromPoint finds them -->
-        {#each drawn.angles as a (a.id)}
-          <circle cx={a.vx} cy={a.vy} r="26" class="hit" data-angle={a.id} />
-        {/each}
-      </svg>
+        </svg>
+      {/if}
 
       <!-- god-light: WebGL shafts streaming through the lock's real openings,
            screen-blended over the steel. Pure eye-candy — pointer-events none. -->
@@ -1191,6 +1200,20 @@
   }
   svg.open {
     filter: drop-shadow(0 0 24px rgba(255, 210, 120, 0.5));
+  }
+  /* the 2-part key's chain rides above everything (HUD + dock) so it's visible
+     and grabbable over the tray; only the grab takes pointer events, the rest
+     lets clicks/drops fall through to what's beneath. */
+  .chain-layer {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10;
+    pointer-events: none;
+  }
+  .chain-layer .grab {
+    pointer-events: auto;
   }
 
   /* HUD overlaid on the steel, with scrims for legibility */
