@@ -1241,7 +1241,7 @@
      portrait panel); the music dock sits below it. Steel fills the panel behind. */
   .hud-bottom {
     position: absolute;
-    top: 61%;
+    top: 64.5%;
     left: 0;
     right: 0;
     display: flex;
