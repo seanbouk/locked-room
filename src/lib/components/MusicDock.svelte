@@ -20,6 +20,7 @@
     { name: 'Cliqhop', desc: 'glitchy IDM · chill beats', id: 'cliqhop' },
   ];
   const streamUrl = (id: string, host: 5 | 3 = 5) => `https://ice${host}.somafm.com/${id}-128-mp3`;
+  const MUSIC_VOLUME = 0.5; // sits under the (limited, louder) sound effects
 
   const KEY = 'locked-room/music/v1';
   let stationIdx = $state(0);
@@ -35,6 +36,10 @@
       /* ignore */
     }
     // opens silent — browsers block autoplay and the room should start quiet.
+  });
+  // keep the radio at half level so it sits under the sound effects
+  $effect(() => {
+    if (audio) audio.volume = MUSIC_VOLUME;
   });
   const persist = () => {
     try { localStorage.setItem(KEY, JSON.stringify({ station: stationIdx })); } catch { /* ignore */ }

@@ -11,7 +11,7 @@ let actx: AudioContext | null = null;
 let master: GainNode | null = null;
 let noiseBuf: AudioBuffer | null = null;
 let enabled = true;
-const VOLUME = 0.9;
+const VOLUME = 1.0;
 
 function ctx(): AudioContext | null {
   if (typeof window === 'undefined') return null;
@@ -29,7 +29,15 @@ function out(): GainNode | null {
   if (!master) {
     master = c.createGain();
     master.gain.value = enabled ? VOLUME : 0;
-    master.connect(c.destination);
+    // a limiter on the bus so SFX can sit LOUD (and the wedge cascade can stack
+    // many sounds at once) without hard-clipping the output.
+    const limiter = c.createDynamicsCompressor();
+    limiter.threshold.value = -8;
+    limiter.knee.value = 6;
+    limiter.ratio.value = 16;
+    limiter.attack.value = 0.003;
+    limiter.release.value = 0.18;
+    master.connect(limiter).connect(c.destination);
   }
   return master;
 }
