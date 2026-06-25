@@ -164,6 +164,17 @@ export const sfx = {
     body(t, { f0: 116, f1: 100, drop: 0.04, dur: 0.12, gain: 1.15 });
     transient(t, { type: 'lowpass', freq: 700, q: 0.7, dur: 0.03, gain: 0.85 });
   },
+  /** the lock straining/buzzing while it's parked before opening — a small,
+   *  bright metallic tick. Call repeatedly for a continuous rattle; the pitch +
+   *  level jitter keeps the repeats from reading as a loop. */
+  rattle() {
+    if (!enabled || !out()) return;
+    const t = when();
+    const f = 1700 + Math.random() * 1500;
+    transient(t, { type: 'bandpass', freq: f, q: 2, dur: 0.012, gain: 0.1 + Math.random() * 0.06 });
+    partial(t, f, 0.05, 0.06);
+    partial(t, f * 1.7, 0.03, 0.035);
+  },
   /** pins turning a quarter-turn (gentle downward drift; darker + quieter) */
   slide() {
     if (!enabled || !out()) return;

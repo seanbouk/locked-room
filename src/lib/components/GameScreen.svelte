@@ -67,14 +67,22 @@
   // wedges in a heavily-overlapped cascade -> spin every pin a quarter turn ->
   // shrink the whole lock back -> rotate it 90deg -> flash white -> next level.
   const HB = 640;
-  type Phase = 'intro' | 'play' | 'drop' | 'spin' | 'circleBack' | 'rotate' | 'doors' | 'flash';
+  // 'jiggle' parks the sequence once every pin is down and turned: the lock face
+  // rattles (each plate piece on its own axis) and waits for a tap before the
+  // body recedes and opens — see startTransition / finishTransition.
+  type Phase = 'intro' | 'play' | 'drop' | 'spin' | 'jiggle' | 'circleBack' | 'rotate' | 'doors' | 'flash';
   let phase = $state<Phase>('intro');
   setTimeout(() => phase === 'intro' && (phase = 'play'), 40); // fade in from white
   const transitioning = $derived(phase !== 'play' && phase !== 'intro');
   // From 'drop' on, every wedge is down; from 'spin' on, every pin is turned.
   const dropping = $derived(phase !== 'play' && phase !== 'intro');
   const spun = $derived(
-    phase === 'spin' || phase === 'circleBack' || phase === 'rotate' || phase === 'doors' || phase === 'flash',
+    phase === 'spin' ||
+      phase === 'jiggle' ||
+      phase === 'circleBack' ||
+      phase === 'rotate' ||
+      phase === 'doors' ||
+      phase === 'flash',
   );
   // A wedge is "down" when it's the solved angle's marked wedge (during play),
   // or once the end cascade has begun (everything drops).
@@ -112,19 +120,45 @@
   });
   const dropDelayMs = (ai: number, j: number) => `${(dropOrder.get(`${ai}-${j}`) ?? 0) * DROP_STAGGER}ms`;
 
+  // Per-plate-piece "rattle" params for the pre-open pause: each tile shakes on
+  // its own axis, phase and tempo so the lock body buzzes as a loose collection
+  // of parts, not one rigid block. Generated once; amplitudes are in viewBox
+  // units (px maps to user units for an SVG element's CSS transform).
+  const faceJiggle = drawn.faces.map(() => {
+    const ang = Math.random() * Math.PI * 2;
+    const amp = 0.35 + Math.random() * 0.5; // 0.35–0.85 user units of travel
+    return {
+      dx: +(Math.cos(ang) * amp).toFixed(2),
+      dy: +(Math.sin(ang) * amp).toFixed(2),
+      dr: +((Math.random() * 2 - 1) * 0.9).toFixed(2), // ±0.9°
+      delay: +(-Math.random() * 0.25).toFixed(3), // negative: desync the starts
+      dur: +(0.12 + Math.random() * 0.08).toFixed(3), // 0.12–0.20s per cycle
+    };
+  });
+
   function startTransition() {
     phase = 'drop'; // cascade the remaining wedges down
     const tDrop = Math.max(HB, dropOrder.size * DROP_STAGGER + 480);
-    const tSpin = tDrop + 560;
-    const tBack = tSpin + 520;
-    const tRot = tBack + HB;
-    const tDoors = tRot + HB; // the lock has turned; now the doors swing open
     setTimeout(() => (phase = 'spin'), tDrop); // quarter-turn every pin together
-    setTimeout(() => (phase = 'circleBack'), tSpin);
-    setTimeout(() => (phase = 'rotate'), tBack);
-    setTimeout(() => (phase = 'doors'), tRot);
-    setTimeout(() => (phase = 'flash'), tDoors + 520); // flash once the doors are open
-    setTimeout(() => onComplete(), tDoors + 520 + 600);
+    // ...then PARK: every pin is down and turned, so the lock face rattles and
+    // waits for a tap (finishTransition) before the body recedes and opens.
+    setTimeout(() => (phase = 'jiggle'), tDrop + 560);
+  }
+
+  // The tap that releases the parked lock: stop the rattle (the pieces snap home
+  // the instant the 'jiggle' class drops), then run the original recede → turn →
+  // doors → flash → complete sequence, preserving its timing.
+  function finishTransition() {
+    if (phase !== 'jiggle') return;
+    sfx.clunk(); // the tap registers
+    phase = 'circleBack';
+    const tRot = 520;
+    const tDoors = tRot + HB; // the lock has turned; now the doors swing open
+    const tFlash = tDoors + HB + 520;
+    setTimeout(() => (phase = 'rotate'), tRot);
+    setTimeout(() => (phase = 'doors'), tDoors);
+    setTimeout(() => (phase = 'flash'), tFlash); // flash once the doors are open
+    setTimeout(() => onComplete(), tFlash + 600);
   }
 
   // A set-back wedge recedes toward the VANISHING POINT (the puzzle centre = the
@@ -499,6 +533,13 @@
     switch (phase) {
       case 'drop': scheduleDropFoley(); break; // every wedge lands (sized)
       case 'spin': sfx.slide(); break; // pins turn a quarter
+      case 'jiggle': {
+        // continuous metal rattle while the parked lock buzzes; cleared the
+        // moment the tap moves us off 'jiggle'
+        sfx.rattle();
+        const iv = setInterval(() => sfx.rattle(), 110);
+        return () => clearInterval(iv);
+      }
       case 'circleBack': sfx.lockSlide(); break; // the whole lock slides/seats
       case 'doors': sfx.door(); break; // doors slide open
       case 'flash': sfx.thud(); break; // it opens
@@ -1019,8 +1060,17 @@
              kerf gaps). Everything here is cut by the pin holes, so nothing draws
              across a pin — including the rim edge and the line glow. -->
         <g mask="url(#plateHoles)">
-          {#each drawn.faces as f (f.id)}
-            <path d={f.inset} class="plate-piece" filter="url(#bevel)" />
+          {#each drawn.faces as f, i (f.id)}
+            <path
+              d={f.inset}
+              class="plate-piece"
+              style:--jx="{faceJiggle[i].dx}px"
+              style:--jy="{faceJiggle[i].dy}px"
+              style:--jr="{faceJiggle[i].dr}deg"
+              style:--jd="{faceJiggle[i].delay}s"
+              style:--jt="{faceJiggle[i].dur}s"
+              filter="url(#bevel)"
+            />
           {/each}
           {#if debugTint}
             {#each drawn.faces as f, i (f.id)}
@@ -1062,6 +1112,12 @@
         {#each drawn.angles as a (a.id)}
           <circle cx={a.vx} cy={a.vy} r="26" class="hit" data-angle={a.id} onpointerdown={(e) => onPinTap(e, a.id)} role="button" tabindex="-1" aria-label="angle {a.id}" />
         {/each}
+
+        <!-- the parked lock: a full-board tap target (above the pin hits) so a
+             tap anywhere releases the rattling lock and finishes the level -->
+        {#if phase === 'jiggle'}
+          <rect x="-186" y="-196" width="372" height="496" class="jiggle-tap" onpointerdown={finishTransition} role="button" tabindex="-1" aria-label="open the lock" />
+        {/if}
       </svg>
 
       <!-- the 2-part key's chain, in its own layer ABOVE the HUD (same viewBox)
@@ -1304,6 +1360,28 @@
   }
   .plate-piece {
     fill: url(#plate);
+  }
+  /* the pre-open rattle: while parked in 'jiggle', every plate piece shakes on
+     its own axis/phase/tempo (custom props set inline per piece). Pivots about
+     each piece's own box centre. Dropping the class snaps them home instantly —
+     no transform transition on .plate-piece — which is the "snap back" before
+     the lock recedes. */
+  @keyframes pieceJiggle {
+    0% { transform: translate(0, 0) rotate(0deg); }
+    25% { transform: translate(var(--jx), var(--jy)) rotate(var(--jr)); }
+    50% { transform: translate(0, 0) rotate(0deg); }
+    75% { transform: translate(calc(var(--jx) * -1), calc(var(--jy) * -1)) rotate(calc(var(--jr) * -1)); }
+    100% { transform: translate(0, 0) rotate(0deg); }
+  }
+  .screen.jiggle .plate-piece {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: pieceJiggle var(--jt, 0.16s) ease-in-out var(--jd, 0s) infinite;
+  }
+  /* full-board tap target while the lock is parked */
+  .jiggle-tap {
+    fill: transparent;
+    cursor: pointer;
   }
   /* DEBUG: translucent colour wash over each piece (steel/bevel stays visible) */
   .debug-tint {
