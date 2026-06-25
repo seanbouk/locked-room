@@ -106,10 +106,11 @@
     z-index: 5;
     pointer-events: auto;
   }
-  /* a quiet glass bar — neutral, sits under the lock without shouting */
+  /* a quiet glass bar — neutral, sits under the lock without shouting. Height is
+     panel-relative (cqw) with NO px floor, so it scales with the game on slender
+     phones instead of looking pinned to the page. */
   .surface {
     height: 13cqw;
-    min-height: 96px;
     display: flex;
     align-items: center;
     gap: 1.6cqw;
