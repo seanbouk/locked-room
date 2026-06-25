@@ -20,7 +20,7 @@
     { name: 'Cliqhop', desc: 'glitchy IDM · chill beats', id: 'cliqhop' },
   ];
   const streamUrl = (id: string, host: 5 | 3 = 5) => `https://ice${host}.somafm.com/${id}-128-mp3`;
-  const MUSIC_VOLUME = 0.5; // sits under the (limited, louder) sound effects
+  const MUSIC_VOLUME = 0.25; // sits well under the (limited, louder) sound effects
 
   const KEY = 'locked-room/music/v1';
   let stationIdx = $state(0);
