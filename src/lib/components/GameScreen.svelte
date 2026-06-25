@@ -821,6 +821,15 @@
     window.addEventListener('pointerup', onHandleUp);
   }
 
+  // Changed your mind? Tap the pin a two-part key hangs from and it just drops.
+  function onPinTap(e: PointerEvent, id: string) {
+    if (!chain || failing || id !== chain.anchor) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const last = ropeBeads[ropeBeads.length - 1];
+    failChain(last ? { x: last.x, y: last.y } : vpos(chain.anchor)); // falls from where it hangs
+  }
+
   function onKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') endChain();
     if (e.key === 'd') debugTint = !debugTint;
@@ -1045,7 +1054,7 @@
 
         <!-- invisible drop targets, on top so elementFromPoint finds them -->
         {#each drawn.angles as a (a.id)}
-          <circle cx={a.vx} cy={a.vy} r="26" class="hit" data-angle={a.id} />
+          <circle cx={a.vx} cy={a.vy} r="26" class="hit" data-angle={a.id} onpointerdown={(e) => onPinTap(e, a.id)} role="button" tabindex="-1" aria-label="angle {a.id}" />
         {/each}
       </svg>
 
