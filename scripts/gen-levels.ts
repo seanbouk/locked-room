@@ -362,8 +362,31 @@ function centreTriangle(): Spec[] {
           angles: [ang('O', 'P', 'Q'), ang('R', 'P', 'Q'), ang('P', 'R', 'Q'), ang('Q', 'R', 'P')],
         };
         const score = minAngularGap([P, Q, Rv]);
+        // centre-first: the central angle gives the inscribed one, triangle-sum the base.
         cands.push({ score, spec: { ...base, givens: ['POQ', 'RPQ'], targets: ['PRQ', 'RQP'] } });
         cands.push({ score, spec: { ...base, givens: ['POQ', 'RQP'], targets: ['PRQ', 'RPQ'] } });
+      }
+  cands.sort((a, b) => b.score - a.score);
+  return cands.map((c) => c.spec);
+}
+// Same figure, reverse logic: the two base angles give the inscribed angle via
+// triangle-sum, then the centre DOUBLES it to the central angle. A distinct feel
+// from centreTriangle, so the band's centre+triangle rooms aren't carbon copies.
+function centreTriangleRev(): Spec[] {
+  const cands: Array<{ spec: Spec; score: number }> = [];
+  for (let p = 0; p < 360; p += 30)
+    for (let q = p + 60; q < p + 210; q += 30)
+      for (let r = q + 50; r <= p + 320; r += 30) {
+        const P = norm360(p), Q = norm360(q), Rv = norm360(r);
+        cands.push({
+          score: minAngularGap([P, Q, Rv]),
+          spec: {
+            pts: [pt('O', 'O'), pt('P', P), pt('Q', Q), pt('R', Rv)],
+            angles: [ang('O', 'P', 'Q'), ang('R', 'P', 'Q'), ang('P', 'R', 'Q'), ang('Q', 'R', 'P')],
+            givens: ['RPQ', 'RQP'],
+            targets: ['PRQ', 'POQ'],
+          },
+        });
       }
   cands.sort((a, b) => b.score - a.score);
   return cands.map((c) => c.spec);
@@ -600,6 +623,7 @@ const T = {
   semitrisameseg: { kind: 'semitrisameseg', gen: semiTriSameSeg },
   centre: { kind: 'centre', gen: centre },
   centreTriangle: { kind: 'centretriangle', gen: centreTriangle },
+  centreTriangleRev: { kind: 'centretriangle', gen: centreTriangleRev },
   centreTriSameSeg: { kind: 'centretrisameseg', gen: centreTriSameSeg },
   iso: { kind: 'iso', gen: iso },
   centreiso: { kind: 'centreiso', gen: centreIso },
@@ -629,24 +653,24 @@ const plans: Plan[] = [
       { templates: [T.semitrisameseg], count: 1, needKeys: [SEMI, TRI, SAME] },
     ],
   },
-  // Angle-at-Centre band — hand-ordered room by room rather than in type blocks,
-  // so there's no "run of the same puzzle" to spot. Difficulty trends up (1-key →
-  // 2-key → 3-key) but no two neighbours share a type, and earlier-key throwbacks
-  // (trisemi, semiTriSameSeg — both using the right-angle key) break the
-  // assumption that every room here needs the centre. Centre+semicircle in ONE
-  // figure is skipped (degenerate: a right angle's central angle is a straight
-  // 180°). Each entry picks the next roomiest unused figure of its kind.
+  // Angle-at-Centre band — EVERY room uses the centre key. Hand-ordered room by
+  // room (not in type blocks) so there's no "run of the same puzzle" to spot;
+  // difficulty trends up (1-key → 2-key → 3-key) and the centre+triangle rooms
+  // alternate centre-first / triangle-first variants so they don't feel
+  // identical. Each entry picks the next roomiest unused figure of its kind.
+  // (No right-angle here: a right angle's central angle is a straight 180°, so
+  // semicircle can't share a figure with the centre without a collinear layout.)
   {
     band: 'b4', keys: [SEMI, TRI, SAME, CEN], award: ISO,
     groups: [
-      { templates: [T.centre], count: 1, needKeys: [CEN] },             // 1-key
-      { templates: [T.centre], count: 1, needKeys: [CEN] },             // 1-key
-      { templates: [T.centreTriangle], count: 1, needKeys: [CEN, TRI] }, // 2-key
-      { templates: [T.trisemi], count: 1, needKeys: [SEMI, TRI] },       // 2-key · right-angle
-      { templates: [T.centreTriangle], count: 1, needKeys: [CEN, TRI] }, // 2-key
-      { templates: [T.semitrisameseg], count: 1, needKeys: [SEMI, TRI, SAME] }, // 3-key · right-angle
+      { templates: [T.centre], count: 1, needKeys: [CEN] },                      // 1-key
+      { templates: [T.centre], count: 1, needKeys: [CEN] },                      // 1-key
+      { templates: [T.centreTriangle], count: 1, needKeys: [CEN, TRI] },         // 2-key (centre-first)
+      { templates: [T.centreTriangleRev], count: 1, needKeys: [CEN, TRI] },      // 2-key (triangle-first)
       { templates: [T.centreTriSameSeg], count: 1, needKeys: [CEN, TRI, SAME] }, // 3-key
-      { templates: [T.semitrisameseg], count: 1, needKeys: [SEMI, TRI, SAME] }, // 3-key · right-angle
+      { templates: [T.centreTriangle], count: 1, needKeys: [CEN, TRI] },         // 2-key (breather)
+      { templates: [T.centreTriSameSeg], count: 1, needKeys: [CEN, TRI, SAME] }, // 3-key
+      { templates: [T.centreTriangleRev], count: 1, needKeys: [CEN, TRI] },      // 2-key (breather)
       { templates: [T.centreTriSameSeg], count: 1, needKeys: [CEN, TRI, SAME] }, // 3-key finale
     ],
   },
