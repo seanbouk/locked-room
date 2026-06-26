@@ -108,12 +108,6 @@
             </button>
           {/each}
         </div>
-        <div class="kit">
-          <span class="kit-label">Keys won</span>
-          {#each progress.unlockedKeys as id (id)}
-            <span class="kchip" title={ALL_KEYS[id]?.blurb}>⚷ {ALL_KEYS[id]?.name ?? id}</span>
-          {/each}
-        </div>
         <button class="reset" onclick={() => { progress.reset(); currentId = 1; showRooms = false; }}>
           reset all progress
         </button>
@@ -275,26 +269,6 @@
     height: 1.8cqw;
     border-radius: 50%;
     box-shadow: inset 0 0 0 0.18cqw rgba(255, 255, 255, 0.45), 0 0 0 0.12cqw rgba(0, 0, 0, 0.35);
-  }
-  .kit {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1cqw;
-    align-items: center;
-  }
-  .kit-label {
-    font-size: 1.8cqw;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    opacity: 0.5;
-  }
-  .kchip {
-    font-size: 2cqw;
-    padding: 0.6cqw 1.4cqw;
-    border-radius: 999px;
-    background: rgba(255, 224, 122, 0.12);
-    border: 1px solid rgba(255, 224, 122, 0.4);
-    color: #ffe7a8;
   }
   .reset {
     align-self: flex-start;
