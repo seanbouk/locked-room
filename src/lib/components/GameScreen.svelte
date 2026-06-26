@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { Lock } from '../engine/game';
   import { drawPuzzle, PIN_R } from '../render/figure';
-  import { makeRope, stepRope, type Bead } from '../render/rope';
+  import { stepRope, SEG, BEADS, type Bead } from '../render/rope';
   import { ALL_KEYS, type Placement } from '../engine/theorems';
   import { GodLight } from '../render/godlight';
   import { KEY_COLORS, KEY_INK } from '../render/keyStyle';
@@ -760,14 +760,19 @@
   function startChain(keyId: string, anchor: string) {
     sfx.clunk(); // first part of a two-part key latches onto its anchor
     chain = { keyId, anchor };
+    // Spawn the chain SHORT — the loose end about a third of the chain's length
+    // below the anchor, with a little random x — then let gravity drop and
+    // extend it. (Spawning it fully stretched made it just pop into place; and
+    // anchoring on the centre pin used to collapse it onto the pin entirely.)
     const a = vpos(anchor);
-    const c = { x: drawn.circle.cx, y: drawn.circle.cy };
-    // The chain spawns pointing from the anchor toward the centre (so a rim pin's
-    // chain hangs inward). But the angle-at-centre key anchors on the CENTRE pin,
-    // where "toward centre" is zero-length — the beads spawn stacked on the pin
-    // and barely un-stack. So when the anchor is the centre, dangle straight down.
-    const toward = Math.hypot(a.x - c.x, a.y - c.y) < 1 ? { x: c.x, y: c.y + 100 } : c;
-    ropeBeads = makeRope(a.x, a.y, toward);
+    const drop = ((BEADS - 1) * SEG) / 3;
+    const jitter = (Math.random() * 2 - 1) * SEG * 0.5;
+    ropeBeads = Array.from({ length: BEADS }, (_, i) => {
+      const t = i / (BEADS - 1);
+      const x = a.x + jitter * t;
+      const y = a.y + drop * t;
+      return { x, y, px: x, py: y };
+    });
     grabbing = false;
     if (!raf) raf = requestAnimationFrame(loop);
   }
