@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { LEVELS } from './lib/engine/levels';
+  import { LEVELS, STARTING_KEYS } from './lib/engine/levels';
   import { ALL_KEYS } from './lib/engine/theorems';
   import { KEY_COLORS } from './lib/render/keyStyle';
   import { progress } from './lib/stores/progress.svelte';
@@ -18,6 +18,19 @@
   let nextAfterReward = $state<number | null>(null);
 
   const currentLevel = $derived(LEVELS.find((l) => l.id === currentId)!);
+
+  // Keys the player holds ENTERING each room — the cumulative awards of all
+  // earlier rooms (independent of what this room's puzzle actually uses). Drives
+  // the per-room key dots in the Rooms overview.
+  const keysByRoom = $derived.by(() => {
+    const map = new Map<number, string[]>();
+    let acc = [...STARTING_KEYS];
+    for (const lvl of LEVELS) {
+      map.set(lvl.id, acc);
+      if (lvl.award && !acc.includes(lvl.award)) acc = [...acc, lvl.award];
+    }
+    return map;
+  });
 
   function goTo(id: number) {
     if (!progress.isUnlocked(id)) return;
@@ -85,6 +98,13 @@
               <span class="rnum">Room {lvl.id}</span>
               <span class="rtitle">{unlocked ? lvl.title : 'Locked'}</span>
               <span class="rstate">{done ? '✓ open' : unlocked ? '○ open it' : '🔒'}</span>
+              <!-- a dot per key the player holds by this room (all unlocked, not
+                   just the ones this puzzle needs) -->
+              <span class="rkeys">
+                {#each keysByRoom.get(lvl.id) ?? [] as kid (kid)}
+                  <span class="rkey-dot" style:background={KEY_COLORS[kid]} title={ALL_KEYS[kid]?.name}></span>
+                {/each}
+              </span>
             </button>
           {/each}
         </div>
@@ -239,6 +259,22 @@
   .rstate {
     font-size: 1.9cqw;
     opacity: 0.7;
+  }
+  /* per-room key dots: one coloured pip per key unlocked by this room. A light
+     ring keeps the darker pips (blue/purple) legible on the navy card. The row
+     reserves height so cards with no keys (Room 1) still line up. */
+  .rkeys {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.9cqw;
+    margin-top: 0.6cqw;
+    min-height: 1.8cqw;
+  }
+  .rkey-dot {
+    width: 1.8cqw;
+    height: 1.8cqw;
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 0.18cqw rgba(255, 255, 255, 0.45), 0 0 0 0.12cqw rgba(0, 0, 0, 0.35);
   }
   .kit {
     display: flex;
