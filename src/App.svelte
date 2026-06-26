@@ -17,6 +17,23 @@
   let rewardKeyId = $state<string | null>(null);
   let nextAfterReward = $state<number | null>(null);
 
+  // Reset is a deferred, escalating commitment: each click disables the prior
+  // button and reveals the next, filling the space to the right. Once the chain
+  // is exhausted the reset is "armed" and actually fires when you leave the
+  // modal — no cancel button; just don't finish the chain (or pick a room).
+  const RESET_STEPS = ['reset all progress', 'are you sure?', 'really sure?', 'absolutely certain?'];
+  let resetStep = $state(0);
+  const resetArmed = $derived(resetStep >= RESET_STEPS.length);
+
+  function closeRooms() {
+    if (resetArmed) {
+      progress.reset();
+      currentId = 1;
+    }
+    resetStep = 0;
+    showRooms = false;
+  }
+
   const currentLevel = $derived(LEVELS.find((l) => l.id === currentId)!);
 
   // Keys the player holds ENTERING each room — the cumulative awards of all
@@ -34,6 +51,7 @@
 
   function goTo(id: number) {
     if (!progress.isUnlocked(id)) return;
+    resetStep = 0; // picking a room cancels a part-armed reset
     currentId = id;
     showRooms = false;
   }
@@ -77,11 +95,11 @@
     <MusicDock />
 
     {#if showRooms}
-    <div class="modal-bg" onclick={() => (showRooms = false)} role="presentation">
+    <div class="modal-bg" onclick={closeRooms} role="presentation">
       <div class="modal" onclick={(e) => e.stopPropagation()} role="dialog" aria-label="Rooms">
         <div class="modal-head">
           <h2>Rooms</h2>
-          <button class="x" onclick={() => (showRooms = false)}>✕</button>
+          <button class="x" onclick={closeRooms}>✕</button>
         </div>
         <div class="rooms">
           {#each LEVELS as lvl (lvl.id)}
@@ -108,9 +126,23 @@
             </button>
           {/each}
         </div>
-        <button class="reset" onclick={() => { progress.reset(); currentId = 1; showRooms = false; }}>
-          reset all progress
-        </button>
+        <!-- escalating reset: each click disables the prior button and reveals
+             the next; once the chain is done it's armed and fires on close -->
+        <div class="reset-row">
+          {#each RESET_STEPS as label, i (i)}
+            {#if i <= resetStep}
+              <button
+                class="reset-step"
+                class:danger={i > 0}
+                disabled={i < resetStep}
+                onclick={() => (resetStep = i + 1)}
+              >{label}</button>
+            {/if}
+          {/each}
+          {#if resetArmed}
+            <span class="reset-armed">⚠ progress resets when you close this menu</span>
+          {/if}
+        </div>
       </div>
     </div>
   {/if}
@@ -270,15 +302,53 @@
     border-radius: 50%;
     box-shadow: inset 0 0 0 0.18cqw rgba(255, 255, 255, 0.45), 0 0 0 0.12cqw rgba(0, 0, 0, 0.35);
   }
-  .reset {
-    align-self: flex-start;
+  /* escalating reset chain, filling the row left→right */
+  .reset-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1.2cqw;
+    margin-top: 0.5cqw;
+  }
+  .reset-step {
     background: none;
     border: none;
     color: #8aa0cc;
     cursor: pointer;
     font-size: 1.9cqw;
-    opacity: 0.6;
-    padding: 0;
+    padding: 0.4cqw 0.2cqw;
+    transition: opacity 0.15s, border-color 0.15s, background 0.15s;
+  }
+  /* every step after the first is an alarming red pill; the live one pulses */
+  .reset-step.danger {
+    border: 1px solid rgba(255, 92, 92, 0.55);
+    color: #ff8a8a;
+    border-radius: 1.2cqw;
+    padding: 0.7cqw 1.3cqw;
+  }
+  .reset-step.danger:hover:not(:disabled) {
+    background: rgba(255, 80, 80, 0.14);
+    border-color: #ff6a6a;
+  }
+  .reset-step.danger:not(:disabled) {
+    animation: resetPulse 1.2s ease-in-out infinite;
+  }
+  .reset-step:disabled {
+    opacity: 0.32;
+    cursor: default;
+    border-style: dashed;
+  }
+  .reset-armed {
+    font-size: 1.8cqw;
+    color: #ff7a7a;
+    letter-spacing: 0.03em;
+  }
+  @keyframes resetPulse {
+    0%, 100% { opacity: 0.65; }
+    50% { opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .reset-step.danger:not(:disabled) { animation: none; }
   }
   /* ── reward screen ──
      A full-screen white hold (the round already flooded white as the lock
