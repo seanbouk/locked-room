@@ -670,6 +670,30 @@
     preview ? preview.map((v) => { const p = ptPos.get(v)!; return `${p.x},${p.y}`; }).join(' ') : '',
   );
 
+  // While a key is in hand — pressed/dragged off the tray, or a 2-part key
+  // mid-link — name what it does below the tray (the caption) and give its valid
+  // drop spots a soft, colour-coded aura, so players who click rather than drag
+  // can still see where it goes.
+  const activeKeyId = $derived(chain?.keyId ?? drag?.keyId ?? null);
+  const hint = $derived.by(() => {
+    if (chain) {
+      // the loose end: light up the nodes that legally pair with the anchor
+      const partners = placementsFor(chain.keyId)
+        .filter((p) => p.angleIds.length === 2 && p.angleIds.includes(chain!.anchor))
+        .map((p) => p.angleIds.find((id) => id !== chain!.anchor)!);
+      return { keyId: chain.keyId, nodes: [...new Set(partners)], tris: [] as string[][] };
+    }
+    if (drag) {
+      if (drag.keyId === 'triangle-sum')
+        return { keyId: drag.keyId, nodes: [] as string[], tris: geomTriangles.map((t) => t.verts) };
+      const nodes = [...new Set(placementsFor(drag.keyId).flatMap((p) => p.angleIds))];
+      return { keyId: drag.keyId, nodes, tris: [] as string[][] };
+    }
+    return null;
+  });
+  const auraTriPoly = (verts: string[]) =>
+    verts.map((v) => { const p = ptPos.get(v)!; return `${p.x},${p.y}`; }).join(' ');
+
   // Live chain geometry for rendering (recomputes each animation frame).
   const chainPts = $derived.by(() => {
     ropeTick;
@@ -963,6 +987,20 @@
           <filter id="lineGlow" x="-20%" y="-20%" width="140%" height="140%">
             <feGaussianBlur stdDeviation="1.4" />
           </filter>
+          <!-- soft drop-hint aura, one off-centre radial per key colour (a shared
+               gradient with currentColor resolves inconsistently across browsers,
+               so we bake one per colour). Spun for a gentle swirl, blurred and
+               screen-blended so it reads as a glow rather than a shape. -->
+          {#each Object.entries(KEY_COLORS) as [kid, col] (kid)}
+            <radialGradient id="aura-{kid}" cx="40%" cy="38%" r="60%">
+              <stop offset="0%" stop-color={col} stop-opacity="0.85" />
+              <stop offset="45%" stop-color={col} stop-opacity="0.4" />
+              <stop offset="100%" stop-color={col} stop-opacity="0" />
+            </radialGradient>
+          {/each}
+          <filter id="auraSoft" x="-70%" y="-70%" width="240%" height="240%">
+            <feGaussianBlur stdDeviation="3.4" />
+          </filter>
           <clipPath id="discClip">
             <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} />
           </clipPath>
@@ -1102,6 +1140,24 @@
         <!-- /lock — god-light now lives in the <canvas> overlay, derived from the
              real openings rather than painted cones -->
 
+        <!-- soft colour-coded auras over every spot the held key can go (pins for
+             1/2-part keys, triangles for the triangle key) -->
+        {#if hint && phase === 'play'}
+          <g class="aura-layer" aria-hidden="true">
+            {#each hint.nodes as id (id)}
+              {@const v = vpos(id)}
+              <g transform="translate({v.x} {v.y})">
+                <g class="aura-node">
+                  <circle r="28" fill="url(#aura-{hint.keyId})" filter="url(#auraSoft)" />
+                </g>
+              </g>
+            {/each}
+            {#each hint.tris as verts, i (i)}
+              <polygon points={auraTriPoly(verts)} fill="url(#aura-{hint.keyId})" filter="url(#auraSoft)" />
+            {/each}
+          </g>
+        {/if}
+
         {#if preview}
           <polygon points={previewPoly} class="tri-preview" />
         {/if}
@@ -1186,13 +1242,17 @@
               class:locked
               class:active
               class:dimmed
-              title={locked ? 'Locked — win this key in an earlier room' : k.blurb}
               onpointerdown={(e) => startKeyDrag(e, k.id)}
             >
               <KeyIcon id={k.id} />
               {#if locked}<span class="lock-badge">🔒</span>{/if}
             </div>
           {/each}
+        </div>
+        <!-- the native tray tooltip was unreliable; while a key is in hand show
+             what it does here, large and in the key's colour -->
+        <div class="key-caption" class:show={!!activeKeyId} style:color={activeKeyId ? KEY_COLORS[activeKeyId] : null}>
+          {activeKeyId ? ALL_KEYS[activeKeyId]?.blurb : ''}
         </div>
       </div>
 
@@ -1221,8 +1281,16 @@
     background: #14171d;
     color: #e8edf7;
     user-select: none;
+    -webkit-user-select: none;
+    /* no blue tap flash / text-selection on the nodes — they're drag/drop
+       targets, not selectable text (click-preferring players were seeing a
+       "selected" state and thinking the tap did something) */
+    -webkit-tap-highlight-color: transparent;
     touch-action: none;
     container-type: inline-size;
+  }
+  .screen :global(*) {
+    -webkit-tap-highlight-color: transparent;
   }
   /* wrong-drop jitter, applied to the ITEM dropped on (a pin or a triangle).
      translate values are SVG user units; the wrapper carries no base transform
@@ -1333,6 +1401,25 @@
   }
   .hud-bottom .tray {
     pointer-events: auto;
+  }
+  /* what the held key does — large, in the key's colour, in the space below the
+     tray. Always present (reserves its height so the tray doesn't jump); fades
+     in only while a key is in hand. */
+  .key-caption {
+    min-height: 7.5cqw;
+    max-width: 82%;
+    text-align: center;
+    font-size: 3cqw;
+    font-weight: 600;
+    line-height: 1.25;
+    text-wrap: balance;
+    text-shadow: 0 0 1.4cqw color-mix(in srgb, currentColor 55%, transparent);
+    opacity: 0;
+    transition: opacity 0.18s ease;
+    pointer-events: none;
+  }
+  .key-caption.show {
+    opacity: 1;
   }
 
   /* sliced-plate pieces: the dark void behind the gaps, the steel tiles, and
@@ -1463,6 +1550,34 @@
   .hit {
     fill: transparent;
     cursor: default;
+    outline: none; /* no focus ring — clicking a bare node should read as "nothing yet" */
+  }
+  .hit:focus,
+  .hit:focus-visible {
+    outline: none;
+  }
+
+  /* drop-hint auras: soft, screen-blended glows in the held key's colour. The
+     node aura slowly spins its off-centre highlight (the "swirl"); the whole
+     layer breathes so it reads as a living hint, not a static ring. */
+  .aura-layer {
+    pointer-events: none;
+    mix-blend-mode: screen;
+    animation: auraBreath 1.8s ease-in-out infinite;
+  }
+  @keyframes auraBreath {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 0.95; }
+  }
+  .aura-node {
+    transform-origin: 0 0; /* the circle is centred on the group origin */
+    animation: auraSpin 6s linear infinite;
+  }
+  @keyframes auraSpin {
+    to { transform: rotate(360deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .aura-layer, .aura-node { animation: none; }
   }
 
   .rope {
