@@ -349,6 +349,51 @@ function centreIso(): Spec[] {
     }
   return out;
 }
+// Centre + triangle (band 4): the central angle doubles the inscribed one, then
+// triangle-sum settles the remaining base angle. Roomiest-first.
+function centreTriangle(): Spec[] {
+  const cands: Array<{ spec: Spec; score: number }> = [];
+  for (let p = 0; p < 360; p += 30)
+    for (let q = p + 60; q < p + 210; q += 30)
+      for (let r = q + 50; r <= p + 320; r += 30) {
+        const P = norm360(p), Q = norm360(q), Rv = norm360(r);
+        const base = {
+          pts: [pt('O', 'O'), pt('P', P), pt('Q', Q), pt('R', Rv)],
+          angles: [ang('O', 'P', 'Q'), ang('R', 'P', 'Q'), ang('P', 'R', 'Q'), ang('Q', 'R', 'P')],
+        };
+        const score = minAngularGap([P, Q, Rv]);
+        cands.push({ score, spec: { ...base, givens: ['POQ', 'RPQ'], targets: ['PRQ', 'RQP'] } });
+        cands.push({ score, spec: { ...base, givens: ['POQ', 'RQP'], targets: ['PRQ', 'RPQ'] } });
+      }
+  cands.sort((a, b) => b.score - a.score);
+  return cands.map((c) => c.spec);
+}
+// Centre + triangle + same-segment (band 4 finale): central doubles the inscribed
+// ∠ACB, triangle-sum gives ∠ABC, same-segment carries it across chord AC to ∠ADC.
+function centreTriSameSeg(): Spec[] {
+  const cands: Array<{ spec: Spec; score: number }> = [];
+  for (let a = 0; a < 360; a += 30)
+    for (let b = a + 60; b <= a + 180; b += 30)
+      for (let c = b + 50; c <= a + 320; c += 30)
+        // D sits on the SAME arc as B (between A and C), so ∠ADC = ∠ABC by
+        // same-segment; placing it beyond C would put it on the opposite side.
+        for (let d = a + 30; d <= c - 30; d += 30) {
+          if (Math.abs(d - b) < 25) continue; // keep D clear of B
+          const A = norm360(a), B = norm360(b), C = norm360(c), D = norm360(d);
+          cands.push({
+            score: minAngularGap([A, B, C, D]),
+            spec: {
+              pts: [pt('O', 'O'), pt('A', A), pt('B', B), pt('C', C), pt('D', D)],
+              angles: [ang('O', 'A', 'B'), ang('C', 'A', 'B'), ang('A', 'C', 'B'), ang('B', 'A', 'C'), ang('D', 'A', 'C')],
+              givens: ['AOB', 'CAB'],
+              targets: ['ACB', 'ABC', 'ADC'],
+              faint: [['D', 'A'], ['D', 'C']],
+            },
+          });
+        }
+  cands.sort((a, b) => b.score - a.score);
+  return cands.map((c) => c.spec);
+}
 // Triangle + same-segment chain (band 5): two triangle angles -> third -> twin.
 function triSameSeg(): Spec[] {
   // Sorted ROOMIEST-first: same-segment forces both apexes onto the same arc, but
@@ -481,6 +526,8 @@ const titles: Record<string, string[]> = {
   trisemi: ['The Third Angle', 'What the Triangle Owes', 'Closing the Triangle', 'Half a Turn, Shared', 'The Corner That Remains', 'One Given, Two Found'],
   sameseg: ['Same Arc, Same Angle', 'Twin Views', 'Across the Chord', 'Echo on the Rim', 'Two Witnesses', 'Three of a Kind'],
   centre: ['Twice from the Heart', 'The Centre Doubles', 'Rim and Core', 'The Doubling', 'Heart of It', 'Half the Centre'],
+  centretriangle: ['Centre and Corner', 'Double, Then Close', 'The Fed Triangle', 'From Heart to Corner', 'Twice, Then Sum', 'Core and Triangle'],
+  centretrisameseg: ['Heart, Triangle, Twin', 'The Full Chain', 'Double, Close, Carry', 'Centre to Chord', 'Three Keys Deep'],
   iso: ['Two Even Spokes', 'The Balanced Base', 'Spokes and Span', 'From Centre, Outward', 'Even on Two Radii', 'The Level Base', 'Balanced Load', 'Twin Spokes'],
   centreiso: ['Centre, Rim, Base', 'Twice Around the Heart', 'The Patient Chain', 'From Rim to Spoke', 'Doubled then Balanced', 'The Long Way In', 'Heart, Then Balance', 'Three Keys Turning'],
   trisameseg: ['The Folded Triangle', 'Carried Across', 'Mirror and Measure', 'Close, Then Cross', 'Crossed Witnesses', 'The Twin Corner', 'Across and Equal', 'Triangle to Twin'],
@@ -493,6 +540,8 @@ const intros: Record<string, string> = {
   trisemi: 'A right angle hides in the semicircle, and one angle is given. The rest must follow.',
   sameseg: 'Two angles watch the same chord from the same side. They cannot disagree.',
   centre: 'The angle at the heart of the circle is twice the one out on the rim.',
+  centretriangle: 'The centre doubles the rim angle; the triangle settles the rest.',
+  centretrisameseg: 'Double from the centre, close the triangle, then carry the angle across the chord.',
   iso: 'Two radii make one triangle — its base angles share the load evenly.',
   centreiso: 'From the rim to the centre to the base: chain the doubling and the balance.',
   trisameseg: 'Close one triangle, then carry its angle across the chord to its twin.',
@@ -550,6 +599,8 @@ const T = {
   trisameseg: { kind: 'trisameseg', gen: triSameSeg },
   semitrisameseg: { kind: 'semitrisameseg', gen: semiTriSameSeg },
   centre: { kind: 'centre', gen: centre },
+  centreTriangle: { kind: 'centretriangle', gen: centreTriangle },
+  centreTriSameSeg: { kind: 'centretrisameseg', gen: centreTriSameSeg },
   iso: { kind: 'iso', gen: iso },
   centreiso: { kind: 'centreiso', gen: centreIso },
 } satisfies Record<string, Template>;
@@ -578,8 +629,18 @@ const plans: Plan[] = [
       { templates: [T.semitrisameseg], count: 1, needKeys: [SEMI, TRI, SAME] },
     ],
   },
-  // (Bands below are untouched for now — to be revisited.)
-  { band: 'b4', keys: [SEMI, TRI, SAME, CEN], award: ISO, groups: [{ templates: [T.centre], count: 5, needKeys: [CEN] }] },
+  // Angle-at-Centre ramp: two pure rooms, then four that pair it with the
+  // triangle, then three that chain centre → triangle → same-segment. Then the
+  // Balance (isosceles) key. (Centre+semicircle is degenerate — a right angle's
+  // central angle is a straight 180° — so it isn't used here.)
+  {
+    band: 'b4', keys: [SEMI, TRI, SAME, CEN], award: ISO,
+    groups: [
+      { templates: [T.centre], count: 2, needKeys: [CEN] },
+      { templates: [T.centreTriangle], count: 4, needKeys: [CEN, TRI] },
+      { templates: [T.centreTriSameSeg], count: 3, needKeys: [CEN, TRI, SAME] },
+    ],
+  },
   {
     band: 'b5', keys: [SEMI, TRI, SAME, CEN, ISO],
     groups: [{ templates: [T.iso, T.centreiso, T.trisameseg, T.trisemi], count: 20, minRequired: 2 }],
