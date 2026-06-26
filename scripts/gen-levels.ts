@@ -629,16 +629,25 @@ const plans: Plan[] = [
       { templates: [T.semitrisameseg], count: 1, needKeys: [SEMI, TRI, SAME] },
     ],
   },
-  // Angle-at-Centre ramp: two pure rooms, then four that pair it with the
-  // triangle, then three that chain centre → triangle → same-segment. Then the
-  // Balance (isosceles) key. (Centre+semicircle is degenerate — a right angle's
-  // central angle is a straight 180° — so it isn't used here.)
+  // Angle-at-Centre band — hand-ordered room by room rather than in type blocks,
+  // so there's no "run of the same puzzle" to spot. Difficulty trends up (1-key →
+  // 2-key → 3-key) but no two neighbours share a type, and earlier-key throwbacks
+  // (trisemi, semiTriSameSeg — both using the right-angle key) break the
+  // assumption that every room here needs the centre. Centre+semicircle in ONE
+  // figure is skipped (degenerate: a right angle's central angle is a straight
+  // 180°). Each entry picks the next roomiest unused figure of its kind.
   {
     band: 'b4', keys: [SEMI, TRI, SAME, CEN], award: ISO,
     groups: [
-      { templates: [T.centre], count: 2, needKeys: [CEN] },
-      { templates: [T.centreTriangle], count: 4, needKeys: [CEN, TRI] },
-      { templates: [T.centreTriSameSeg], count: 3, needKeys: [CEN, TRI, SAME] },
+      { templates: [T.centre], count: 1, needKeys: [CEN] },             // 1-key
+      { templates: [T.centre], count: 1, needKeys: [CEN] },             // 1-key
+      { templates: [T.centreTriangle], count: 1, needKeys: [CEN, TRI] }, // 2-key
+      { templates: [T.trisemi], count: 1, needKeys: [SEMI, TRI] },       // 2-key · right-angle
+      { templates: [T.centreTriangle], count: 1, needKeys: [CEN, TRI] }, // 2-key
+      { templates: [T.semitrisameseg], count: 1, needKeys: [SEMI, TRI, SAME] }, // 3-key · right-angle
+      { templates: [T.centreTriSameSeg], count: 1, needKeys: [CEN, TRI, SAME] }, // 3-key
+      { templates: [T.semitrisameseg], count: 1, needKeys: [SEMI, TRI, SAME] }, // 3-key · right-angle
+      { templates: [T.centreTriSameSeg], count: 1, needKeys: [CEN, TRI, SAME] }, // 3-key finale
     ],
   },
   {

@@ -261,6 +261,21 @@ const level15: Level = {
 
 const level16: Level = {
   id: 16,
+  title: "Half a Turn, Shared",
+  intro: "A right angle hides in the semicircle, and one angle is given. The rest must follow.",
+  puzzle: {
+    circle: { cx: 0, cy: 0, r: 100 },
+    points: [{ id: 'A', x: 50, y: 86.602540378 }, { id: 'B', x: -50, y: -86.602540378 }, { id: 'C', x: -100, y: 0 }],
+    segments: [{ a: 'C', b: 'A', kind: 'chord' }, { a: 'C', b: 'B', kind: 'chord' }, { a: 'A', b: 'B', kind: 'chord' }],
+    angles: [{ id: 'ACB', vertex: 'C', from: 'A', to: 'B' }, { id: 'CAB', vertex: 'A', from: 'C', to: 'B' }, { id: 'ABC', vertex: 'B', from: 'A', to: 'C' }],
+    givens: ['CAB'],
+    targets: ['ABC'],
+    keys: ['semicircle', 'triangle-sum', 'same-segment', 'angle-at-centre'],
+  },
+};
+
+const level17: Level = {
+  id: 17,
   title: "Double, Then Close",
   intro: "The centre doubles the rim angle; the triangle settles the rest.",
   puzzle: {
@@ -274,34 +289,20 @@ const level16: Level = {
   },
 };
 
-const level17: Level = {
-  id: 17,
-  title: "The Fed Triangle",
-  intro: "The centre doubles the rim angle; the triangle settles the rest.",
-  puzzle: {
-    circle: { cx: 0, cy: 0, r: 100 },
-    points: [{ id: 'O', x: 0, y: 0 }, { id: 'P', x: 50, y: 86.602540378 }, { id: 'Q', x: -86.602540378, y: 50 }, { id: 'R', x: -64.278760969, y: -76.604444312 }],
-    segments: [{ a: 'O', b: 'P', kind: 'radius' }, { a: 'O', b: 'Q', kind: 'radius' }, { a: 'R', b: 'P', kind: 'chord' }, { a: 'R', b: 'Q', kind: 'chord' }, { a: 'P', b: 'Q', kind: 'chord' }],
-    angles: [{ id: 'POQ', vertex: 'O', from: 'P', to: 'Q' }, { id: 'PRQ', vertex: 'R', from: 'P', to: 'Q' }, { id: 'RPQ', vertex: 'P', from: 'R', to: 'Q' }, { id: 'RQP', vertex: 'Q', from: 'R', to: 'P' }],
-    givens: ['POQ', 'RPQ'],
-    targets: ['PRQ', 'RQP'],
-    keys: ['semicircle', 'triangle-sum', 'same-segment', 'angle-at-centre'],
-  },
-};
-
 const level18: Level = {
   id: 18,
-  title: "From Heart to Corner",
-  intro: "The centre doubles the rim angle; the triangle settles the rest.",
+  title: "All Three at the Chord",
+  intro: "Square the semicircle, sum the triangle, then carry the angle across the chord.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
-    points: [{ id: 'O', x: 0, y: 0 }, { id: 'P', x: 0, y: 100 }, { id: 'Q', x: -100, y: 0 }, { id: 'R', x: 93.969262079, y: 34.202014333 }],
-    segments: [{ a: 'O', b: 'P', kind: 'radius' }, { a: 'O', b: 'Q', kind: 'radius' }, { a: 'R', b: 'P', kind: 'chord' }, { a: 'R', b: 'Q', kind: 'chord' }, { a: 'P', b: 'Q', kind: 'chord' }],
-    angles: [{ id: 'POQ', vertex: 'O', from: 'P', to: 'Q' }, { id: 'PRQ', vertex: 'R', from: 'P', to: 'Q' }, { id: 'RPQ', vertex: 'P', from: 'R', to: 'Q' }, { id: 'RQP', vertex: 'Q', from: 'R', to: 'P' }],
-    givens: ['POQ', 'RPQ'],
-    targets: ['PRQ', 'RQP'],
+    points: [{ id: 'A', x: 100, y: 0 }, { id: 'B', x: -100, y: 0 }, { id: 'C', x: -17.364817767, y: 98.480775301 }, { id: 'D', x: 50, y: -86.602540378 }],
+    segments: [{ a: 'C', b: 'A', kind: 'chord' }, { a: 'C', b: 'B', kind: 'chord' }, { a: 'A', b: 'B', kind: 'chord' }, { a: 'D', b: 'A', kind: 'chord' }, { a: 'D', b: 'C', kind: 'chord' }],
+    angles: [{ id: 'ACB', vertex: 'C', from: 'A', to: 'B' }, { id: 'CAB', vertex: 'A', from: 'C', to: 'B' }, { id: 'ABC', vertex: 'B', from: 'A', to: 'C' }, { id: 'ADC', vertex: 'D', from: 'A', to: 'C' }],
+    givens: ['CAB'],
+    targets: ['ABC', 'ADC'],
     keys: ['semicircle', 'triangle-sum', 'same-segment', 'angle-at-centre'],
   },
+  faintSegments: [["D","A"],["D","C"]],
 };
 
 const level19: Level = {
@@ -322,15 +323,15 @@ const level19: Level = {
 
 const level20: Level = {
   id: 20,
-  title: "The Full Chain",
-  intro: "Double from the centre, close the triangle, then carry the angle across the chord.",
+  title: "The Long Chain",
+  intro: "Square the semicircle, sum the triangle, then carry the angle across the chord.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
-    points: [{ id: 'O', x: 0, y: 0 }, { id: 'A', x: -100, y: 0 }, { id: 'B', x: -50, y: -86.602540378 }, { id: 'C', x: -34.202014333, y: 93.969262079 }, { id: 'D', x: 50, y: -86.602540378 }],
-    segments: [{ a: 'O', b: 'A', kind: 'radius' }, { a: 'O', b: 'B', kind: 'radius' }, { a: 'C', b: 'A', kind: 'chord' }, { a: 'C', b: 'B', kind: 'chord' }, { a: 'A', b: 'B', kind: 'chord' }, { a: 'D', b: 'A', kind: 'chord' }, { a: 'D', b: 'C', kind: 'chord' }],
-    angles: [{ id: 'AOB', vertex: 'O', from: 'A', to: 'B' }, { id: 'ACB', vertex: 'C', from: 'A', to: 'B' }, { id: 'CAB', vertex: 'A', from: 'C', to: 'B' }, { id: 'ABC', vertex: 'B', from: 'A', to: 'C' }, { id: 'ADC', vertex: 'D', from: 'A', to: 'C' }],
-    givens: ['AOB', 'CAB'],
-    targets: ['ACB', 'ABC', 'ADC'],
+    points: [{ id: 'A', x: -50, y: 86.602540378 }, { id: 'B', x: 50, y: -86.602540378 }, { id: 'C', x: -50, y: -86.602540378 }, { id: 'D', x: 93.969262079, y: 34.202014333 }],
+    segments: [{ a: 'C', b: 'A', kind: 'chord' }, { a: 'C', b: 'B', kind: 'chord' }, { a: 'A', b: 'B', kind: 'chord' }, { a: 'D', b: 'A', kind: 'chord' }, { a: 'D', b: 'C', kind: 'chord' }],
+    angles: [{ id: 'ACB', vertex: 'C', from: 'A', to: 'B' }, { id: 'CAB', vertex: 'A', from: 'C', to: 'B' }, { id: 'ABC', vertex: 'B', from: 'A', to: 'C' }, { id: 'ADC', vertex: 'D', from: 'A', to: 'C' }],
+    givens: ['CAB'],
+    targets: ['ABC', 'ADC'],
     keys: ['semicircle', 'triangle-sum', 'same-segment', 'angle-at-centre'],
   },
   faintSegments: [["D","A"],["D","C"]],
@@ -338,11 +339,11 @@ const level20: Level = {
 
 const level21: Level = {
   id: 21,
-  title: "Double, Close, Carry",
+  title: "The Full Chain",
   intro: "Double from the centre, close the triangle, then carry the angle across the chord.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
-    points: [{ id: 'O', x: 0, y: 0 }, { id: 'A', x: -50, y: 86.602540378 }, { id: 'B', x: -100, y: 0 }, { id: 'C', x: 64.278760969, y: 76.604444312 }, { id: 'D', x: 100, y: 0 }],
+    points: [{ id: 'O', x: 0, y: 0 }, { id: 'A', x: -100, y: 0 }, { id: 'B', x: -50, y: -86.602540378 }, { id: 'C', x: -34.202014333, y: 93.969262079 }, { id: 'D', x: 50, y: -86.602540378 }],
     segments: [{ a: 'O', b: 'A', kind: 'radius' }, { a: 'O', b: 'B', kind: 'radius' }, { a: 'C', b: 'A', kind: 'chord' }, { a: 'C', b: 'B', kind: 'chord' }, { a: 'A', b: 'B', kind: 'chord' }, { a: 'D', b: 'A', kind: 'chord' }, { a: 'D', b: 'C', kind: 'chord' }],
     angles: [{ id: 'AOB', vertex: 'O', from: 'A', to: 'B' }, { id: 'ACB', vertex: 'C', from: 'A', to: 'B' }, { id: 'CAB', vertex: 'A', from: 'C', to: 'B' }, { id: 'ABC', vertex: 'B', from: 'A', to: 'C' }, { id: 'ADC', vertex: 'D', from: 'A', to: 'C' }],
     givens: ['AOB', 'CAB'],
@@ -401,7 +402,7 @@ const level24: Level = {
 
 const level25: Level = {
   id: 25,
-  title: "Half a Turn, Shared",
+  title: "The Corner That Remains",
   intro: "A right angle hides in the semicircle, and one angle is given. The rest must follow.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
@@ -462,7 +463,7 @@ const level28: Level = {
 
 const level29: Level = {
   id: 29,
-  title: "The Corner That Remains",
+  title: "One Given, Two Found",
   intro: "A right angle hides in the semicircle, and one angle is given. The rest must follow.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
@@ -523,7 +524,7 @@ const level32: Level = {
 
 const level33: Level = {
   id: 33,
-  title: "One Given, Two Found",
+  title: "One Given, Two Found · 7",
   intro: "A right angle hides in the semicircle, and one angle is given. The rest must follow.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
@@ -584,7 +585,7 @@ const level36: Level = {
 
 const level37: Level = {
   id: 37,
-  title: "One Given, Two Found · 7",
+  title: "One Given, Two Found · 8",
   intro: "A right angle hides in the semicircle, and one angle is given. The rest must follow.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
@@ -645,7 +646,7 @@ const level40: Level = {
 
 const level41: Level = {
   id: 41,
-  title: "One Given, Two Found · 8",
+  title: "One Given, Two Found · 9",
   intro: "A right angle hides in the semicircle, and one angle is given. The rest must follow.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
