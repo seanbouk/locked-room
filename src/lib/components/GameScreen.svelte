@@ -760,7 +760,14 @@
   function startChain(keyId: string, anchor: string) {
     sfx.clunk(); // first part of a two-part key latches onto its anchor
     chain = { keyId, anchor };
-    ropeBeads = makeRope(vpos(anchor).x, vpos(anchor).y, { x: drawn.circle.cx, y: drawn.circle.cy });
+    const a = vpos(anchor);
+    const c = { x: drawn.circle.cx, y: drawn.circle.cy };
+    // The chain spawns pointing from the anchor toward the centre (so a rim pin's
+    // chain hangs inward). But the angle-at-centre key anchors on the CENTRE pin,
+    // where "toward centre" is zero-length — the beads spawn stacked on the pin
+    // and barely un-stack. So when the anchor is the centre, dangle straight down.
+    const toward = Math.hypot(a.x - c.x, a.y - c.y) < 1 ? { x: c.x, y: c.y + 100 } : c;
+    ropeBeads = makeRope(a.x, a.y, toward);
     grabbing = false;
     if (!raf) raf = requestAnimationFrame(loop);
   }
