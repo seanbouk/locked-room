@@ -46,6 +46,9 @@ interface Spec {
   extraSegs?: [string, string][];
   givens: string[];
   targets: string[];
+  /** Cosmetic: segment endpoint pairs to draw as faint hairlines (a same-segment
+   *  twin's sides, so it doesn't read as a second solvable triangle). */
+  faint?: [string, string][];
 }
 
 const angId = (a: AngSpec) => `${a.f}${a.v}${a.t}`;
@@ -116,6 +119,7 @@ interface Valid {
   steps: number;
   required: string[]; // keys without which it is no longer solvable
   sig: string;
+  faint?: [string, string][]; // cosmetic faint-edge list, carried from the spec
 }
 function minAngularGap(degs: number[]): number {
   let m = 360;
@@ -163,7 +167,7 @@ function validate(spec: Spec, keys: string[]): Valid | null {
     g: [...spec.givens].sort(),
     t: [...spec.targets].sort(),
   });
-  return { puzzle, steps: g.steps, required, sig };
+  return { puzzle, steps: g.steps, required, sig, faint: spec.faint };
 }
 
 // ── Templates ──────────────────────────────────────────────────────────────--
@@ -360,6 +364,7 @@ function triSameSeg(): Spec[] {
             extraSegs: [['P', 'Q']],
             givens: ['RPQ', 'RQP'],
             targets: ['PRQ', 'PSQ'],
+            faint: [['S', 'P'], ['S', 'Q']], // the twin's sides — soften so PSQ doesn't read as a triangle
           });
         }
     }
@@ -384,6 +389,7 @@ function semiTriSameSeg(): Spec[] {
           angles: [ang('C', 'A', 'B'), ang('A', 'C', 'B'), ang('B', 'A', 'C'), ang('D', 'A', 'C')],
           givens: ['CAB'],
           targets: ['ABC', 'ADC'],
+          faint: [['D', 'A'], ['D', 'C']], // the twin's sides
         });
       }
     }
@@ -569,7 +575,7 @@ const plans: Plan[] = [
   },
 ];
 
-const generated: Array<{ kind: string; puzzle: Puzzle; award?: string }> = [];
+const generated: Array<{ kind: string; puzzle: Puzzle; award?: string; faint?: [string, string][] }> = [];
 for (const plan of plans) {
   const picked: Array<Valid & { kind: string }> = [];
   for (const g of plan.groups) {
@@ -583,6 +589,7 @@ for (const plan of plans) {
       kind: v.kind,
       puzzle: v.puzzle,
       award: i === picked.length - 1 ? plan.award : undefined,
+      faint: v.faint,
     });
   });
 }
@@ -621,6 +628,9 @@ export interface Level {
   puzzle: Puzzle;
   /** Key id awarded on first completion. Display name comes from the theorem. */
   award?: string;
+  /** Cosmetic only: segment endpoint pairs drawn as faint hairlines (a
+   *  same-segment twin's sides, so it doesn't read as a solvable triangle). */
+  faintSegments?: [string, string][];
 }
 
 export const STARTING_KEYS: string[] = [];
@@ -648,11 +658,12 @@ generated.forEach((g, i) => {
   const id = i + 2; // room 1 is the threshold
   const { title, intro } = levelMeta(g.kind);
   const awardLine = g.award ? `\n  award: '${g.award}',` : '';
+  const faintLine = g.faint?.length ? `\n  faintSegments: ${JSON.stringify(g.faint)},` : '';
   lines.push(`const level${id}: Level = {
   id: ${id},
   title: ${JSON.stringify(title)},
   intro: ${JSON.stringify(intro)},
-  puzzle: ${emitPuzzle(g.puzzle).trimStart()},${awardLine}
+  puzzle: ${emitPuzzle(g.puzzle).trimStart()},${awardLine}${faintLine}
 };
 `);
 });

@@ -31,6 +31,10 @@
   // on a tap, reusing the end-of-puzzle release, so we drop straight into the
   // 'jiggle' phase (the trembling lock + tap target) instead of 'play'.
   const tutorial = drawn.angles.length === 0;
+  // Cosmetic: a same-segment twin's sides, drawn as faint hairlines so the twin
+  // doesn't read as a second solvable triangle (see the plate render below).
+  const faintKeys = new Set((level.faintSegments ?? []).map(([a, b]) => [a, b].sort().join('|')));
+  const isFaintSeg = (id: string) => faintKeys.has(id.split('-').sort().join('|'));
   const givenSet = new Set(level.puzzle.givens);
   const targetSet = new Set(level.puzzle.targets);
   const angleMap = new Map(drawn.angles.map((a) => [a.id, a]));
@@ -1119,6 +1123,16 @@
               <path d={f.inset} fill={tintColor(i)} class="debug-tint" />
             {/each}
           {/if}
+          <!-- soften a same-segment twin's sides: a plate-toned line laid over
+               those kerfs so they read as faint hairlines, not a second solvable
+               triangle. Masked like the plate, so it never covers a pin. -->
+          {#if !debugTint}
+            {#each drawn.segments as s (s.id)}
+              {#if isFaintSeg(s.id)}
+                <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} class="faint-edge" />
+              {/if}
+            {/each}
+          {/if}
           <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} fill="#d2d8df" filter="url(#brushed)" opacity="0.10" clip-path="url(#discClip)" />
           <circle cx={drawn.circle.cx} cy={drawn.circle.cy} r={drawn.circle.r} class="rim-edge" fill="none" />
           <g class="line-glow" filter="url(#lineGlow)">
@@ -1484,6 +1498,14 @@
   .rim-edge {
     stroke: #14171d;
     stroke-width: 1.2;
+  }
+  /* faint twin-edge: a plate-toned line filling the kerf so the cut reads as a
+     shallow hairline rather than a deep gap (a same-segment twin's sides). */
+  .faint-edge {
+    stroke: #434a56;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    opacity: 0.92;
   }
 
   .corner-dot {

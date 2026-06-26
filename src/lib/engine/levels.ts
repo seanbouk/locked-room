@@ -20,6 +20,9 @@ export interface Level {
   puzzle: Puzzle;
   /** Key id awarded on first completion. Display name comes from the theorem. */
   award?: string;
+  /** Cosmetic only: segment endpoint pairs drawn as faint hairlines (a
+   *  same-segment twin's sides, so it doesn't read as a solvable triangle). */
+  faintSegments?: [string, string][];
 }
 
 export const STARTING_KEYS: string[] = [];
@@ -175,6 +178,7 @@ const level10: Level = {
     targets: ['PRQ', 'PSQ'],
     keys: ['semicircle', 'triangle-sum', 'same-segment'],
   },
+  faintSegments: [["S","P"],["S","Q"]],
 };
 
 const level11: Level = {
@@ -190,6 +194,7 @@ const level11: Level = {
     targets: ['PRQ', 'PSQ'],
     keys: ['semicircle', 'triangle-sum', 'same-segment'],
   },
+  faintSegments: [["S","P"],["S","Q"]],
 };
 
 const level12: Level = {
@@ -206,6 +211,7 @@ const level12: Level = {
     keys: ['semicircle', 'triangle-sum', 'same-segment'],
   },
   award: 'angle-at-centre',
+  faintSegments: [["D","A"],["D","C"]],
 };
 
 const level13: Level = {
@@ -327,6 +333,7 @@ const level20: Level = {
     targets: ['PRQ', 'PSQ'],
     keys: ['semicircle', 'triangle-sum', 'same-segment', 'angle-at-centre', 'isosceles-radii'],
   },
+  faintSegments: [["S","P"],["S","Q"]],
 };
 
 const level21: Level = {
@@ -387,6 +394,7 @@ const level24: Level = {
     targets: ['PRQ', 'PSQ'],
     keys: ['semicircle', 'triangle-sum', 'same-segment', 'angle-at-centre', 'isosceles-radii'],
   },
+  faintSegments: [["S","P"],["S","Q"]],
 };
 
 const level25: Level = {
@@ -447,6 +455,7 @@ const level28: Level = {
     targets: ['PRQ', 'PSQ'],
     keys: ['semicircle', 'triangle-sum', 'same-segment', 'angle-at-centre', 'isosceles-radii'],
   },
+  faintSegments: [["S","P"],["S","Q"]],
 };
 
 const level29: Level = {
@@ -507,6 +516,7 @@ const level32: Level = {
     targets: ['PRQ', 'PSQ'],
     keys: ['semicircle', 'triangle-sum', 'same-segment', 'angle-at-centre', 'isosceles-radii'],
   },
+  faintSegments: [["S","P"],["S","Q"]],
 };
 
 const level33: Level = {
@@ -567,6 +577,7 @@ const level36: Level = {
     targets: ['PRQ', 'PSQ'],
     keys: ['semicircle', 'triangle-sum', 'same-segment', 'angle-at-centre', 'isosceles-radii'],
   },
+  faintSegments: [["S","P"],["S","Q"]],
 };
 
 const level37: Level = {
