@@ -366,6 +366,31 @@ function triSameSeg(): Spec[] {
   return out;
 }
 
+// All three early keys in one chain (band 3 finale): AB a diameter, so the
+// right-angle key squares ∠ACB; ∠CAB is given, so the triangle key gives ∠ABC;
+// and D shares ∠ABC's chord (AC) on the same side, so the same-segment key
+// carries it across to ∠ADC. (A right-angle+same-segment chain with no triangle
+// is degenerate — both ends of a diameter are already 90° — so it isn't built.)
+function semiTriSameSeg(): Spec[] {
+  const out: Spec[] = [];
+  for (let d = 0; d < 180; d += 30) {
+    const A = norm360(d), B = norm360(d + 180);
+    for (let co = 40; co <= 140; co += 20) {
+      const C = norm360(d + co);
+      for (let dd = 0; dd < 360; dd += 20) {
+        const D = norm360(dd);
+        out.push({
+          pts: [pt('A', A), pt('B', B), pt('C', C), pt('D', D)],
+          angles: [ang('C', 'A', 'B'), ang('A', 'C', 'B'), ang('B', 'A', 'C'), ang('D', 'A', 'C')],
+          givens: ['CAB'],
+          targets: ['ABC', 'ADC'],
+        });
+      }
+    }
+  }
+  return out;
+}
+
 function pt(id: string, deg: Deg): PtSpec {
   return { id, deg };
 }
@@ -442,6 +467,7 @@ const titles: Record<string, string[]> = {
   iso: ['Two Even Spokes', 'The Balanced Base', 'Spokes and Span', 'From Centre, Outward', 'Even on Two Radii', 'The Level Base', 'Balanced Load', 'Twin Spokes'],
   centreiso: ['Centre, Rim, Base', 'Twice Around the Heart', 'The Patient Chain', 'From Rim to Spoke', 'Doubled then Balanced', 'The Long Way In', 'Heart, Then Balance', 'Three Keys Turning'],
   trisameseg: ['The Folded Triangle', 'Carried Across', 'Mirror and Measure', 'Close, Then Cross', 'Crossed Witnesses', 'The Twin Corner', 'Across and Equal', 'Triangle to Twin'],
+  semitrisameseg: ['Square, Sum, Carry', 'All Three at the Chord', 'The Long Chain', 'Right, Then Across', 'Every Early Key'],
 };
 const intros: Record<string, string> = {
   right: 'A line straight through the centre — find the corner it squares off.',
@@ -453,6 +479,7 @@ const intros: Record<string, string> = {
   iso: 'Two radii make one triangle — its base angles share the load evenly.',
   centreiso: 'From the rim to the centre to the base: chain the doubling and the balance.',
   trisameseg: 'Close one triangle, then carry its angle across the chord to its twin.',
+  semitrisameseg: 'Square the semicircle, sum the triangle, then carry the angle across the chord.',
 };
 
 // ── Emit ───────────────────────────────────────────────────────────────────--
@@ -504,6 +531,7 @@ const T = {
   sameseg2: { kind: 'sameseg', gen: () => sameSeg(false) },
   sameseg3: { kind: 'sameseg', gen: () => sameSeg(true) },
   trisameseg: { kind: 'trisameseg', gen: triSameSeg },
+  semitrisameseg: { kind: 'semitrisameseg', gen: semiTriSameSeg },
   centre: { kind: 'centre', gen: centre },
   iso: { kind: 'iso', gen: iso },
   centreiso: { kind: 'centreiso', gen: centreIso },
@@ -521,13 +549,16 @@ const plans: Plan[] = [
       { templates: [T.trisemi], count: 3, needKeys: [TRI] },
     ],
   },
-  // Same-Segment: two pure same-segment rooms, then three that COMBINE it with
-  // the triangle (find an angle, carry it across the chord). Then Angle-at-Centre.
+  // Same-Segment ramp: two pure rooms, two that pair it with the triangle, then
+  // a finale that needs all three early keys (right → triangle → same-segment).
+  // Then the Angle-at-Centre key. (No right+same-segment-only room: it's
+  // degenerate — both ends of a diameter are already right angles.)
   {
     band: 'b3', keys: [SEMI, TRI, SAME], award: CEN,
     groups: [
       { templates: [T.sameseg2, T.sameseg3], count: 2, needKeys: [SAME] },
-      { templates: [T.trisameseg], count: 3, needKeys: [SAME, TRI] },
+      { templates: [T.trisameseg], count: 2, needKeys: [SAME, TRI] },
+      { templates: [T.semitrisameseg], count: 1, needKeys: [SEMI, TRI, SAME] },
     ],
   },
   // (Bands below are untouched for now — to be revisited.)

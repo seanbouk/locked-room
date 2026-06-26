@@ -194,15 +194,15 @@ const level11: Level = {
 
 const level12: Level = {
   id: 12,
-  title: "Mirror and Measure",
-  intro: "Close one triangle, then carry its angle across the chord to its twin.",
+  title: "Square, Sum, Carry",
+  intro: "Square the semicircle, sum the triangle, then carry the angle across the chord.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
-    points: [{ id: 'P', x: 0, y: 100 }, { id: 'Q', x: -86.602540378, y: 50 }, { id: 'R', x: -98.480775301, y: -17.364817767 }, { id: 'S', x: -76.604444312, y: -64.278760969 }],
-    segments: [{ a: 'R', b: 'P', kind: 'chord' }, { a: 'R', b: 'Q', kind: 'chord' }, { a: 'S', b: 'P', kind: 'chord' }, { a: 'S', b: 'Q', kind: 'chord' }, { a: 'P', b: 'Q', kind: 'chord' }],
-    angles: [{ id: 'PRQ', vertex: 'R', from: 'P', to: 'Q' }, { id: 'PSQ', vertex: 'S', from: 'P', to: 'Q' }, { id: 'RPQ', vertex: 'P', from: 'R', to: 'Q' }, { id: 'RQP', vertex: 'Q', from: 'R', to: 'P' }],
-    givens: ['RPQ', 'RQP'],
-    targets: ['PRQ', 'PSQ'],
+    points: [{ id: 'A', x: 100, y: 0 }, { id: 'B', x: -100, y: 0 }, { id: 'C', x: 76.604444312, y: 64.278760969 }, { id: 'D', x: 17.364817767, y: 98.480775301 }],
+    segments: [{ a: 'C', b: 'A', kind: 'chord' }, { a: 'C', b: 'B', kind: 'chord' }, { a: 'A', b: 'B', kind: 'chord' }, { a: 'D', b: 'A', kind: 'chord' }, { a: 'D', b: 'C', kind: 'chord' }],
+    angles: [{ id: 'ACB', vertex: 'C', from: 'A', to: 'B' }, { id: 'CAB', vertex: 'A', from: 'C', to: 'B' }, { id: 'ABC', vertex: 'B', from: 'A', to: 'C' }, { id: 'ADC', vertex: 'D', from: 'A', to: 'C' }],
+    givens: ['CAB'],
+    targets: ['ABC', 'ADC'],
     keys: ['semicircle', 'triangle-sum', 'same-segment'],
   },
   award: 'angle-at-centre',
@@ -316,7 +316,7 @@ const level19: Level = {
 
 const level20: Level = {
   id: 20,
-  title: "Close, Then Cross",
+  title: "Mirror and Measure",
   intro: "Close one triangle, then carry its angle across the chord to its twin.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
@@ -376,7 +376,7 @@ const level23: Level = {
 
 const level24: Level = {
   id: 24,
-  title: "Crossed Witnesses",
+  title: "Close, Then Cross",
   intro: "Close one triangle, then carry its angle across the chord to its twin.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
@@ -436,7 +436,7 @@ const level27: Level = {
 
 const level28: Level = {
   id: 28,
-  title: "The Twin Corner",
+  title: "Crossed Witnesses",
   intro: "Close one triangle, then carry its angle across the chord to its twin.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
@@ -496,7 +496,7 @@ const level31: Level = {
 
 const level32: Level = {
   id: 32,
-  title: "Across and Equal",
+  title: "The Twin Corner",
   intro: "Close one triangle, then carry its angle across the chord to its twin.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
@@ -556,7 +556,7 @@ const level35: Level = {
 
 const level36: Level = {
   id: 36,
-  title: "Triangle to Twin",
+  title: "Across and Equal",
   intro: "Close one triangle, then carry its angle across the chord to its twin.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
