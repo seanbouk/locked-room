@@ -134,6 +134,17 @@ function minAngularGap(degs: number[]): number {
 // How close any of these point-pairs (chords) comes to a full diameter, in
 // degrees away from 180°. Small = a chord that nearly bisects the disc through
 // the centre — reads oddly, especially next to the centre pin.
+// Largest empty arc between consecutive points around the circle. Big = the
+// figure is bunched into part of the disc, leaving a lopsided gap.
+function maxArcGap(degs: number[]): number {
+  const s = degs.map((d) => ((d % 360) + 360) % 360).sort((a, b) => a - b);
+  let mx = 0;
+  for (let i = 0; i < s.length; i++) {
+    const g = i + 1 < s.length ? s[i + 1] - s[i] : s[0] + 360 - s[i];
+    mx = Math.max(mx, g);
+  }
+  return mx;
+}
 function nearestDiameter(pairs: Array<[number, number]>): number {
   let m = 180;
   for (const [u, v] of pairs) {
@@ -418,9 +429,12 @@ function centreTriSameSeg(): Spec[] {
           // skip figures where any chord runs near the centre pin (a chord within
           // ~30° of a diameter passes within a pin-radius of O)
           const diam = nearestDiameter([[A, B], [A, C], [B, C], [A, D], [C, D]]);
-          if (diam < 30) continue;
+          if (diam < 30) continue; // no chord skimming the centre pin
+          if (maxArcGap([A, B, C, D]) > 150) continue; // no half-empty (bunched) figure
           cands.push({
-            score: minAngularGap([A, B, C, D]) + diam, // spread, and clear of the centre
+            // among centre-clear, not-bunched figures, rank by spread — but rank
+            // (not an even-ness penalty) so the picked rooms stay distinct.
+            score: minAngularGap([A, B, C, D]),
             spec: {
               pts: [pt('O', 'O'), pt('A', A), pt('B', B), pt('C', C), pt('D', D)],
               angles: [ang('O', 'A', 'B'), ang('C', 'A', 'B'), ang('A', 'C', 'B'), ang('B', 'A', 'C'), ang('D', 'A', 'C')],
@@ -685,7 +699,6 @@ const plans: Plan[] = [
       { templates: [T.centreTriSameSeg], count: 1, needKeys: [CEN, TRI, SAME] }, // 3-key
       { templates: [T.centreTriangle], count: 1, needKeys: [CEN, TRI] },         // 2-key (breather)
       { templates: [T.centreTriSameSeg], count: 1, needKeys: [CEN, TRI, SAME] }, // 3-key
-      { templates: [T.centreTriangleRev], count: 1, needKeys: [CEN, TRI] },      // 2-key (breather)
       { templates: [T.centreTriSameSeg], count: 1, needKeys: [CEN, TRI, SAME] }, // 3-key finale
     ],
   },

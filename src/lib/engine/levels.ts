@@ -265,7 +265,7 @@ const level16: Level = {
   intro: "Double from the centre, close the triangle, then carry the angle across the chord.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
-    points: [{ id: 'O', x: 0, y: 0 }, { id: 'A', x: 100, y: 0 }, { id: 'B', x: 50, y: 86.602540378 }, { id: 'C', x: 76.604444312, y: -64.278760969 }, { id: 'D', x: 0, y: -100 }],
+    points: [{ id: 'O', x: 0, y: 0 }, { id: 'A', x: 100, y: 0 }, { id: 'B', x: 50, y: 86.602540378 }, { id: 'C', x: 34.202014333, y: -93.969262079 }, { id: 'D', x: -86.602540378, y: 50 }],
     segments: [{ a: 'O', b: 'A', kind: 'radius' }, { a: 'O', b: 'B', kind: 'radius' }, { a: 'C', b: 'A', kind: 'chord' }, { a: 'C', b: 'B', kind: 'chord' }, { a: 'A', b: 'B', kind: 'chord' }, { a: 'D', b: 'A', kind: 'chord' }, { a: 'D', b: 'C', kind: 'chord' }],
     angles: [{ id: 'AOB', vertex: 'O', from: 'A', to: 'B' }, { id: 'ACB', vertex: 'C', from: 'A', to: 'B' }, { id: 'CAB', vertex: 'A', from: 'C', to: 'B' }, { id: 'ABC', vertex: 'B', from: 'A', to: 'C' }, { id: 'ADC', vertex: 'D', from: 'A', to: 'C' }],
     givens: ['AOB', 'CAB'],
@@ -296,7 +296,7 @@ const level18: Level = {
   intro: "Double from the centre, close the triangle, then carry the angle across the chord.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
-    points: [{ id: 'O', x: 0, y: 0 }, { id: 'A', x: -100, y: 0 }, { id: 'B', x: -50, y: -86.602540378 }, { id: 'C', x: 34.202014333, y: -93.969262079 }, { id: 'D', x: -86.602540378, y: -50 }],
+    points: [{ id: 'O', x: 0, y: 0 }, { id: 'A', x: -100, y: 0 }, { id: 'B', x: -50, y: -86.602540378 }, { id: 'C', x: -34.202014333, y: 93.969262079 }, { id: 'D', x: 86.602540378, y: -50 }],
     segments: [{ a: 'O', b: 'A', kind: 'radius' }, { a: 'O', b: 'B', kind: 'radius' }, { a: 'C', b: 'A', kind: 'chord' }, { a: 'C', b: 'B', kind: 'chord' }, { a: 'A', b: 'B', kind: 'chord' }, { a: 'D', b: 'A', kind: 'chord' }, { a: 'D', b: 'C', kind: 'chord' }],
     angles: [{ id: 'AOB', vertex: 'O', from: 'A', to: 'B' }, { id: 'ACB', vertex: 'C', from: 'A', to: 'B' }, { id: 'CAB', vertex: 'A', from: 'C', to: 'B' }, { id: 'ABC', vertex: 'B', from: 'A', to: 'C' }, { id: 'ADC', vertex: 'D', from: 'A', to: 'C' }],
     givens: ['AOB', 'CAB'],
@@ -308,26 +308,11 @@ const level18: Level = {
 
 const level19: Level = {
   id: 19,
-  title: "The Fed Triangle",
-  intro: "The centre doubles the rim angle; the triangle settles the rest.",
-  puzzle: {
-    circle: { cx: 0, cy: 0, r: 100 },
-    points: [{ id: 'O', x: 0, y: 0 }, { id: 'P', x: 100, y: 0 }, { id: 'Q', x: -50, y: 86.602540378 }, { id: 'R', x: -64.278760969, y: -76.604444312 }],
-    segments: [{ a: 'O', b: 'P', kind: 'radius' }, { a: 'O', b: 'Q', kind: 'radius' }, { a: 'R', b: 'P', kind: 'chord' }, { a: 'R', b: 'Q', kind: 'chord' }, { a: 'P', b: 'Q', kind: 'chord' }],
-    angles: [{ id: 'POQ', vertex: 'O', from: 'P', to: 'Q' }, { id: 'PRQ', vertex: 'R', from: 'P', to: 'Q' }, { id: 'RPQ', vertex: 'P', from: 'R', to: 'Q' }, { id: 'RQP', vertex: 'Q', from: 'R', to: 'P' }],
-    givens: ['RPQ', 'RQP'],
-    targets: ['PRQ', 'POQ'],
-    keys: ['semicircle', 'triangle-sum', 'same-segment', 'angle-at-centre'],
-  },
-};
-
-const level20: Level = {
-  id: 20,
   title: "Double, Close, Carry",
   intro: "Double from the centre, close the triangle, then carry the angle across the chord.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
-    points: [{ id: 'O', x: 0, y: 0 }, { id: 'A', x: -50, y: 86.602540378 }, { id: 'B', x: -100, y: 0 }, { id: 'C', x: 64.278760969, y: 76.604444312 }, { id: 'D', x: 0, y: -100 }],
+    points: [{ id: 'O', x: 0, y: 0 }, { id: 'A', x: 100, y: 0 }, { id: 'B', x: -50, y: 86.602540378 }, { id: 'C', x: -17.364817767, y: -98.480775301 }, { id: 'D', x: -86.602540378, y: -50 }],
     segments: [{ a: 'O', b: 'A', kind: 'radius' }, { a: 'O', b: 'B', kind: 'radius' }, { a: 'C', b: 'A', kind: 'chord' }, { a: 'C', b: 'B', kind: 'chord' }, { a: 'A', b: 'B', kind: 'chord' }, { a: 'D', b: 'A', kind: 'chord' }, { a: 'D', b: 'C', kind: 'chord' }],
     angles: [{ id: 'AOB', vertex: 'O', from: 'A', to: 'B' }, { id: 'ACB', vertex: 'C', from: 'A', to: 'B' }, { id: 'CAB', vertex: 'A', from: 'C', to: 'B' }, { id: 'ABC', vertex: 'B', from: 'A', to: 'C' }, { id: 'ADC', vertex: 'D', from: 'A', to: 'C' }],
     givens: ['AOB', 'CAB'],
@@ -338,8 +323,8 @@ const level20: Level = {
   faintSegments: [["D","A"],["D","C"]],
 };
 
-const level21: Level = {
-  id: 21,
+const level20: Level = {
+  id: 20,
   title: "Two Even Spokes",
   intro: "Two radii make one triangle — its base angles share the load evenly.",
   puzzle: {
@@ -353,8 +338,8 @@ const level21: Level = {
   },
 };
 
-const level22: Level = {
-  id: 22,
+const level21: Level = {
+  id: 21,
   title: "Centre, Rim, Base",
   intro: "From the rim to the centre to the base: chain the doubling and the balance.",
   puzzle: {
@@ -368,8 +353,8 @@ const level22: Level = {
   },
 };
 
-const level23: Level = {
-  id: 23,
+const level22: Level = {
+  id: 22,
   title: "Mirror and Measure",
   intro: "Close one triangle, then carry its angle across the chord to its twin.",
   puzzle: {
@@ -384,8 +369,8 @@ const level23: Level = {
   faintSegments: [["S","P"],["S","Q"]],
 };
 
-const level24: Level = {
-  id: 24,
+const level23: Level = {
+  id: 23,
   title: "Half a Turn, Shared",
   intro: "A right angle hides in the semicircle, and one angle is given. The rest must follow.",
   puzzle: {
@@ -399,8 +384,8 @@ const level24: Level = {
   },
 };
 
-const level25: Level = {
-  id: 25,
+const level24: Level = {
+  id: 24,
   title: "The Balanced Base",
   intro: "Two radii make one triangle — its base angles share the load evenly.",
   puzzle: {
@@ -414,8 +399,8 @@ const level25: Level = {
   },
 };
 
-const level26: Level = {
-  id: 26,
+const level25: Level = {
+  id: 25,
   title: "Twice Around the Heart",
   intro: "From the rim to the centre to the base: chain the doubling and the balance.",
   puzzle: {
@@ -429,8 +414,8 @@ const level26: Level = {
   },
 };
 
-const level27: Level = {
-  id: 27,
+const level26: Level = {
+  id: 26,
   title: "Close, Then Cross",
   intro: "Close one triangle, then carry its angle across the chord to its twin.",
   puzzle: {
@@ -445,8 +430,8 @@ const level27: Level = {
   faintSegments: [["S","P"],["S","Q"]],
 };
 
-const level28: Level = {
-  id: 28,
+const level27: Level = {
+  id: 27,
   title: "The Corner That Remains",
   intro: "A right angle hides in the semicircle, and one angle is given. The rest must follow.",
   puzzle: {
@@ -460,8 +445,8 @@ const level28: Level = {
   },
 };
 
-const level29: Level = {
-  id: 29,
+const level28: Level = {
+  id: 28,
   title: "Spokes and Span",
   intro: "Two radii make one triangle — its base angles share the load evenly.",
   puzzle: {
@@ -475,8 +460,8 @@ const level29: Level = {
   },
 };
 
-const level30: Level = {
-  id: 30,
+const level29: Level = {
+  id: 29,
   title: "The Patient Chain",
   intro: "From the rim to the centre to the base: chain the doubling and the balance.",
   puzzle: {
@@ -490,8 +475,8 @@ const level30: Level = {
   },
 };
 
-const level31: Level = {
-  id: 31,
+const level30: Level = {
+  id: 30,
   title: "Crossed Witnesses",
   intro: "Close one triangle, then carry its angle across the chord to its twin.",
   puzzle: {
@@ -506,8 +491,8 @@ const level31: Level = {
   faintSegments: [["S","P"],["S","Q"]],
 };
 
-const level32: Level = {
-  id: 32,
+const level31: Level = {
+  id: 31,
   title: "One Given, Two Found",
   intro: "A right angle hides in the semicircle, and one angle is given. The rest must follow.",
   puzzle: {
@@ -521,8 +506,8 @@ const level32: Level = {
   },
 };
 
-const level33: Level = {
-  id: 33,
+const level32: Level = {
+  id: 32,
   title: "From Centre, Outward",
   intro: "Two radii make one triangle — its base angles share the load evenly.",
   puzzle: {
@@ -536,8 +521,8 @@ const level33: Level = {
   },
 };
 
-const level34: Level = {
-  id: 34,
+const level33: Level = {
+  id: 33,
   title: "From Rim to Spoke",
   intro: "From the rim to the centre to the base: chain the doubling and the balance.",
   puzzle: {
@@ -551,8 +536,8 @@ const level34: Level = {
   },
 };
 
-const level35: Level = {
-  id: 35,
+const level34: Level = {
+  id: 34,
   title: "The Twin Corner",
   intro: "Close one triangle, then carry its angle across the chord to its twin.",
   puzzle: {
@@ -567,8 +552,8 @@ const level35: Level = {
   faintSegments: [["S","P"],["S","Q"]],
 };
 
-const level36: Level = {
-  id: 36,
+const level35: Level = {
+  id: 35,
   title: "One Given, Two Found · 7",
   intro: "A right angle hides in the semicircle, and one angle is given. The rest must follow.",
   puzzle: {
@@ -582,8 +567,8 @@ const level36: Level = {
   },
 };
 
-const level37: Level = {
-  id: 37,
+const level36: Level = {
+  id: 36,
   title: "Even on Two Radii",
   intro: "Two radii make one triangle — its base angles share the load evenly.",
   puzzle: {
@@ -597,8 +582,8 @@ const level37: Level = {
   },
 };
 
-const level38: Level = {
-  id: 38,
+const level37: Level = {
+  id: 37,
   title: "Doubled then Balanced",
   intro: "From the rim to the centre to the base: chain the doubling and the balance.",
   puzzle: {
@@ -612,8 +597,8 @@ const level38: Level = {
   },
 };
 
-const level39: Level = {
-  id: 39,
+const level38: Level = {
+  id: 38,
   title: "Across and Equal",
   intro: "Close one triangle, then carry its angle across the chord to its twin.",
   puzzle: {
@@ -628,8 +613,8 @@ const level39: Level = {
   faintSegments: [["S","P"],["S","Q"]],
 };
 
-const level40: Level = {
-  id: 40,
+const level39: Level = {
+  id: 39,
   title: "One Given, Two Found · 8",
   intro: "A right angle hides in the semicircle, and one angle is given. The rest must follow.",
   puzzle: {
@@ -643,4 +628,4 @@ const level40: Level = {
   },
 };
 
-export const LEVELS: Level[] = [level1, level2, level3, level4, level5, level6, level7, level8, level9, level10, level11, level12, level13, level14, level15, level16, level17, level18, level19, level20, level21, level22, level23, level24, level25, level26, level27, level28, level29, level30, level31, level32, level33, level34, level35, level36, level37, level38, level39, level40];
+export const LEVELS: Level[] = [level1, level2, level3, level4, level5, level6, level7, level8, level9, level10, level11, level12, level13, level14, level15, level16, level17, level18, level19, level20, level21, level22, level23, level24, level25, level26, level27, level28, level29, level30, level31, level32, level33, level34, level35, level36, level37, level38, level39];
