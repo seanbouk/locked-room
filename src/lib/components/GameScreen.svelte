@@ -5,7 +5,7 @@
   import { makeRope, stepRope, type Bead } from '../render/rope';
   import { ALL_KEYS, type Placement } from '../engine/theorems';
   import { GodLight } from '../render/godlight';
-  import { KEY_COLORS } from '../render/keyStyle';
+  import { KEY_COLORS, KEY_INK } from '../render/keyStyle';
   import { sfx } from '../audio/sfx';
   import KeyIcon from './KeyIcon.svelte';
   import type { Level } from '../engine/levels';
@@ -1251,7 +1251,7 @@
         </div>
         <!-- the native tray tooltip was unreliable; while a key is in hand show
              what it does here, large and in the key's colour -->
-        <div class="key-caption" class:show={!!activeKeyId} style:color={activeKeyId ? KEY_COLORS[activeKeyId] : null}>
+        <div class="key-caption" class:show={!!activeKeyId} style:color={activeKeyId ? KEY_INK[activeKeyId] : null}>
           {activeKeyId ? ALL_KEYS[activeKeyId]?.blurb : ''}
         </div>
       </div>
@@ -1413,7 +1413,9 @@
     font-weight: 600;
     line-height: 1.25;
     text-wrap: balance;
-    text-shadow: 0 0 1.4cqw color-mix(in srgb, currentColor 55%, transparent);
+    /* dark shadow first for legibility on the variable steel, then a faint
+       coloured glow for vibe */
+    text-shadow: 0 0.2cqw 0.5cqw rgba(0, 0, 0, 0.75), 0 0 1.6cqw color-mix(in srgb, currentColor 40%, transparent);
     opacity: 0;
     transition: opacity 0.18s ease;
     pointer-events: none;

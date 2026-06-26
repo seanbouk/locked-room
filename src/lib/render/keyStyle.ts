@@ -9,6 +9,18 @@ export const KEY_COLORS: Record<string, string> = {
   'isosceles-radii': '#832db4', // Balance — purple
 };
 
+// Lighter, higher-luminance tint of each key colour for TEXT on the dark steel.
+// The saturated KEY_COLORS read fine as icons/auras/light, but the blue and
+// purple are too dark for legible captions — these keep the identity while
+// lifting contrast. Used by the key caption below the tray.
+export const KEY_INK: Record<string, string> = {
+  semicircle: '#8298ff', // blue, lifted
+  'triangle-sum': '#ffe04a', // yellow (already bright)
+  'same-segment': '#2bdcba', // teal, lifted
+  'angle-at-centre': '#ff6c83', // red → readable coral
+  'isosceles-radii': '#c47ce8', // purple, lifted
+};
+
 /** RGB 0..1 triple for a key colour (for the WebGL god-light tint). */
 export function keyTintRGB(id: string): [number, number, number] {
   const hex = KEY_COLORS[id] ?? '#ffffff';
