@@ -68,22 +68,22 @@ const level3: Level = {
     targets: ['ACB', 'ADB'],
     keys: ['semicircle'],
   },
+  award: 'triangle-sum',
 };
 
 const level4: Level = {
   id: 4,
-  title: "Square to the Diameter",
-  intro: "A line straight through the centre — find the corner it squares off.",
+  title: "Two Given, One Found",
+  intro: "Two angles of the triangle are known. Its three must add to 180°.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
-    points: [{ id: 'A', x: 93.969262079, y: 34.202014333 }, { id: 'B', x: -93.969262079, y: -34.202014333 }, { id: 'C', x: 17.364817767, y: 98.480775301 }],
-    segments: [{ a: 'C', b: 'A', kind: 'chord' }, { a: 'C', b: 'B', kind: 'chord' }, { a: 'A', b: 'B', kind: 'chord' }],
-    angles: [{ id: 'ACB', vertex: 'C', from: 'A', to: 'B' }],
-    givens: [],
-    targets: ['ACB'],
-    keys: ['semicircle'],
+    points: [{ id: 'A', x: 100, y: 0 }, { id: 'B', x: -50, y: 86.602540378 }, { id: 'C', x: -50, y: -86.602540378 }],
+    segments: [{ a: 'A', b: 'B', kind: 'chord' }, { a: 'A', b: 'C', kind: 'chord' }, { a: 'B', b: 'C', kind: 'chord' }],
+    angles: [{ id: 'BAC', vertex: 'A', from: 'B', to: 'C' }, { id: 'ABC', vertex: 'B', from: 'A', to: 'C' }, { id: 'ACB', vertex: 'C', from: 'A', to: 'B' }],
+    givens: ['ABC', 'ACB'],
+    targets: ['BAC'],
+    keys: ['semicircle', 'triangle-sum'],
   },
-  award: 'triangle-sum',
 };
 
 const level5: Level = {
@@ -129,41 +129,11 @@ const level7: Level = {
     targets: ['ABC'],
     keys: ['semicircle', 'triangle-sum'],
   },
+  award: 'same-segment',
 };
 
 const level8: Level = {
   id: 8,
-  title: "Half a Turn, Shared",
-  intro: "A right angle hides in the semicircle, and one angle is given. The rest must follow.",
-  puzzle: {
-    circle: { cx: 0, cy: 0, r: 100 },
-    points: [{ id: 'A', x: 50, y: 86.602540378 }, { id: 'B', x: -50, y: -86.602540378 }, { id: 'C', x: -100, y: 0 }],
-    segments: [{ a: 'C', b: 'A', kind: 'chord' }, { a: 'C', b: 'B', kind: 'chord' }, { a: 'A', b: 'B', kind: 'chord' }],
-    angles: [{ id: 'ACB', vertex: 'C', from: 'A', to: 'B' }, { id: 'CAB', vertex: 'A', from: 'C', to: 'B' }, { id: 'ABC', vertex: 'B', from: 'A', to: 'C' }],
-    givens: ['CAB'],
-    targets: ['ABC'],
-    keys: ['semicircle', 'triangle-sum'],
-  },
-};
-
-const level9: Level = {
-  id: 9,
-  title: "The Corner That Remains",
-  intro: "A right angle hides in the semicircle, and one angle is given. The rest must follow.",
-  puzzle: {
-    circle: { cx: 0, cy: 0, r: 100 },
-    points: [{ id: 'A', x: 17.364817767, y: 98.480775301 }, { id: 'B', x: -17.364817767, y: -98.480775301 }, { id: 'C', x: -64.278760969, y: -76.604444312 }],
-    segments: [{ a: 'C', b: 'A', kind: 'chord' }, { a: 'C', b: 'B', kind: 'chord' }, { a: 'A', b: 'B', kind: 'chord' }],
-    angles: [{ id: 'ACB', vertex: 'C', from: 'A', to: 'B' }, { id: 'CAB', vertex: 'A', from: 'C', to: 'B' }, { id: 'ABC', vertex: 'B', from: 'A', to: 'C' }],
-    givens: ['CAB'],
-    targets: ['ABC'],
-    keys: ['semicircle', 'triangle-sum'],
-  },
-  award: 'same-segment',
-};
-
-const level10: Level = {
-  id: 10,
   title: "Same Arc, Same Angle",
   intro: "Two angles watch the same chord from the same side. They cannot disagree.",
   puzzle: {
@@ -177,8 +147,8 @@ const level10: Level = {
   },
 };
 
-const level11: Level = {
-  id: 11,
+const level9: Level = {
+  id: 9,
   title: "Twin Views",
   intro: "Two angles watch the same chord from the same side. They cannot disagree.",
   puzzle: {
@@ -192,54 +162,54 @@ const level11: Level = {
   },
 };
 
+const level10: Level = {
+  id: 10,
+  title: "The Folded Triangle",
+  intro: "Close one triangle, then carry its angle across the chord to its twin.",
+  puzzle: {
+    circle: { cx: 0, cy: 0, r: 100 },
+    points: [{ id: 'P', x: 100, y: 0 }, { id: 'Q', x: 50, y: 86.602540378 }, { id: 'R', x: -17.364817767, y: 98.480775301 }, { id: 'S', x: -64.278760969, y: 76.604444312 }],
+    segments: [{ a: 'R', b: 'P', kind: 'chord' }, { a: 'R', b: 'Q', kind: 'chord' }, { a: 'S', b: 'P', kind: 'chord' }, { a: 'S', b: 'Q', kind: 'chord' }, { a: 'P', b: 'Q', kind: 'chord' }],
+    angles: [{ id: 'PRQ', vertex: 'R', from: 'P', to: 'Q' }, { id: 'PSQ', vertex: 'S', from: 'P', to: 'Q' }, { id: 'RPQ', vertex: 'P', from: 'R', to: 'Q' }, { id: 'RQP', vertex: 'Q', from: 'R', to: 'P' }],
+    givens: ['RPQ', 'RQP'],
+    targets: ['PRQ', 'PSQ'],
+    keys: ['semicircle', 'triangle-sum', 'same-segment'],
+  },
+};
+
+const level11: Level = {
+  id: 11,
+  title: "Carried Across",
+  intro: "Close one triangle, then carry its angle across the chord to its twin.",
+  puzzle: {
+    circle: { cx: 0, cy: 0, r: 100 },
+    points: [{ id: 'P', x: 86.602540378, y: 50 }, { id: 'Q', x: -50, y: 86.602540378 }, { id: 'R', x: -98.480775301, y: -17.364817767 }, { id: 'S', x: 64.278760969, y: -76.604444312 }],
+    segments: [{ a: 'R', b: 'P', kind: 'chord' }, { a: 'R', b: 'Q', kind: 'chord' }, { a: 'S', b: 'P', kind: 'chord' }, { a: 'S', b: 'Q', kind: 'chord' }, { a: 'P', b: 'Q', kind: 'chord' }],
+    angles: [{ id: 'PRQ', vertex: 'R', from: 'P', to: 'Q' }, { id: 'PSQ', vertex: 'S', from: 'P', to: 'Q' }, { id: 'RPQ', vertex: 'P', from: 'R', to: 'Q' }, { id: 'RQP', vertex: 'Q', from: 'R', to: 'P' }],
+    givens: ['RPQ', 'RQP'],
+    targets: ['PRQ', 'PSQ'],
+    keys: ['semicircle', 'triangle-sum', 'same-segment'],
+  },
+};
+
 const level12: Level = {
   id: 12,
-  title: "Across the Chord",
-  intro: "Two angles watch the same chord from the same side. They cannot disagree.",
+  title: "Mirror and Measure",
+  intro: "Close one triangle, then carry its angle across the chord to its twin.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
-    points: [{ id: 'P', x: 76.604444312, y: 64.278760969 }, { id: 'Q', x: -50, y: 86.602540378 }, { id: 'R', x: -86.602540378, y: 50 }, { id: 'S', x: -93.969262079, y: -34.202014333 }],
+    points: [{ id: 'P', x: 0, y: 100 }, { id: 'Q', x: -86.602540378, y: 50 }, { id: 'R', x: -98.480775301, y: -17.364817767 }, { id: 'S', x: -76.604444312, y: -64.278760969 }],
     segments: [{ a: 'R', b: 'P', kind: 'chord' }, { a: 'R', b: 'Q', kind: 'chord' }, { a: 'S', b: 'P', kind: 'chord' }, { a: 'S', b: 'Q', kind: 'chord' }, { a: 'P', b: 'Q', kind: 'chord' }],
-    angles: [{ id: 'PRQ', vertex: 'R', from: 'P', to: 'Q' }, { id: 'PSQ', vertex: 'S', from: 'P', to: 'Q' }],
-    givens: ['PRQ'],
-    targets: ['PSQ'],
-    keys: ['semicircle', 'triangle-sum', 'same-segment'],
-  },
-};
-
-const level13: Level = {
-  id: 13,
-  title: "Echo on the Rim",
-  intro: "Two angles watch the same chord from the same side. They cannot disagree.",
-  puzzle: {
-    circle: { cx: 0, cy: 0, r: 100 },
-    points: [{ id: 'P', x: 76.604444312, y: 64.278760969 }, { id: 'Q', x: -17.364817767, y: 98.480775301 }, { id: 'R', x: -86.602540378, y: -50 }, { id: 'S', x: -17.364817767, y: -98.480775301 }, { id: 'U', x: 98.480775301, y: -17.364817767 }],
-    segments: [{ a: 'R', b: 'P', kind: 'chord' }, { a: 'R', b: 'Q', kind: 'chord' }, { a: 'S', b: 'P', kind: 'chord' }, { a: 'S', b: 'Q', kind: 'chord' }, { a: 'U', b: 'P', kind: 'chord' }, { a: 'U', b: 'Q', kind: 'chord' }, { a: 'P', b: 'Q', kind: 'chord' }],
-    angles: [{ id: 'PRQ', vertex: 'R', from: 'P', to: 'Q' }, { id: 'PSQ', vertex: 'S', from: 'P', to: 'Q' }, { id: 'PUQ', vertex: 'U', from: 'P', to: 'Q' }],
-    givens: ['PRQ'],
-    targets: ['PSQ', 'PUQ'],
-    keys: ['semicircle', 'triangle-sum', 'same-segment'],
-  },
-};
-
-const level14: Level = {
-  id: 14,
-  title: "Two Witnesses",
-  intro: "Two angles watch the same chord from the same side. They cannot disagree.",
-  puzzle: {
-    circle: { cx: 0, cy: 0, r: 100 },
-    points: [{ id: 'P', x: 17.364817767, y: 98.480775301 }, { id: 'Q', x: -100, y: 0 }, { id: 'R', x: -64.278760969, y: -76.604444312 }, { id: 'S', x: 93.969262079, y: -34.202014333 }],
-    segments: [{ a: 'R', b: 'P', kind: 'chord' }, { a: 'R', b: 'Q', kind: 'chord' }, { a: 'S', b: 'P', kind: 'chord' }, { a: 'S', b: 'Q', kind: 'chord' }, { a: 'P', b: 'Q', kind: 'chord' }],
-    angles: [{ id: 'PRQ', vertex: 'R', from: 'P', to: 'Q' }, { id: 'PSQ', vertex: 'S', from: 'P', to: 'Q' }],
-    givens: ['PRQ'],
-    targets: ['PSQ'],
+    angles: [{ id: 'PRQ', vertex: 'R', from: 'P', to: 'Q' }, { id: 'PSQ', vertex: 'S', from: 'P', to: 'Q' }, { id: 'RPQ', vertex: 'P', from: 'R', to: 'Q' }, { id: 'RQP', vertex: 'Q', from: 'R', to: 'P' }],
+    givens: ['RPQ', 'RQP'],
+    targets: ['PRQ', 'PSQ'],
     keys: ['semicircle', 'triangle-sum', 'same-segment'],
   },
   award: 'angle-at-centre',
 };
 
-const level15: Level = {
-  id: 15,
+const level13: Level = {
+  id: 13,
   title: "Twice from the Heart",
   intro: "The angle at the heart of the circle is twice the one out on the rim.",
   puzzle: {
@@ -253,8 +223,8 @@ const level15: Level = {
   },
 };
 
-const level16: Level = {
-  id: 16,
+const level14: Level = {
+  id: 14,
   title: "The Centre Doubles",
   intro: "The angle at the heart of the circle is twice the one out on the rim.",
   puzzle: {
@@ -268,8 +238,8 @@ const level16: Level = {
   },
 };
 
-const level17: Level = {
-  id: 17,
+const level15: Level = {
+  id: 15,
   title: "Rim and Core",
   intro: "The angle at the heart of the circle is twice the one out on the rim.",
   puzzle: {
@@ -283,8 +253,8 @@ const level17: Level = {
   },
 };
 
-const level18: Level = {
-  id: 18,
+const level16: Level = {
+  id: 16,
   title: "The Doubling",
   intro: "The angle at the heart of the circle is twice the one out on the rim.",
   puzzle: {
@@ -298,8 +268,8 @@ const level18: Level = {
   },
 };
 
-const level19: Level = {
-  id: 19,
+const level17: Level = {
+  id: 17,
   title: "Heart of It",
   intro: "The angle at the heart of the circle is twice the one out on the rim.",
   puzzle: {
@@ -314,8 +284,8 @@ const level19: Level = {
   award: 'isosceles-radii',
 };
 
-const level20: Level = {
-  id: 20,
+const level18: Level = {
+  id: 18,
   title: "Two Even Spokes",
   intro: "Two radii make one triangle — its base angles share the load evenly.",
   puzzle: {
@@ -329,8 +299,8 @@ const level20: Level = {
   },
 };
 
-const level21: Level = {
-  id: 21,
+const level19: Level = {
+  id: 19,
   title: "Centre, Rim, Base",
   intro: "From the rim to the centre to the base: chain the doubling and the balance.",
   puzzle: {
@@ -344,13 +314,13 @@ const level21: Level = {
   },
 };
 
-const level22: Level = {
-  id: 22,
-  title: "The Folded Triangle",
+const level20: Level = {
+  id: 20,
+  title: "Close, Then Cross",
   intro: "Close one triangle, then carry its angle across the chord to its twin.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
-    points: [{ id: 'P', x: 100, y: 0 }, { id: 'Q', x: 50, y: 86.602540378 }, { id: 'R', x: -17.364817767, y: 98.480775301 }, { id: 'S', x: -64.278760969, y: 76.604444312 }],
+    points: [{ id: 'P', x: 100, y: 0 }, { id: 'Q', x: 0, y: 100 }, { id: 'R', x: -76.604444312, y: -64.278760969 }, { id: 'S', x: 17.364817767, y: -98.480775301 }],
     segments: [{ a: 'R', b: 'P', kind: 'chord' }, { a: 'R', b: 'Q', kind: 'chord' }, { a: 'S', b: 'P', kind: 'chord' }, { a: 'S', b: 'Q', kind: 'chord' }, { a: 'P', b: 'Q', kind: 'chord' }],
     angles: [{ id: 'PRQ', vertex: 'R', from: 'P', to: 'Q' }, { id: 'PSQ', vertex: 'S', from: 'P', to: 'Q' }, { id: 'RPQ', vertex: 'P', from: 'R', to: 'Q' }, { id: 'RQP', vertex: 'Q', from: 'R', to: 'P' }],
     givens: ['RPQ', 'RQP'],
@@ -359,9 +329,9 @@ const level22: Level = {
   },
 };
 
-const level23: Level = {
-  id: 23,
-  title: "One Given, Two Found",
+const level21: Level = {
+  id: 21,
+  title: "Half a Turn, Shared",
   intro: "A right angle hides in the semicircle, and one angle is given. The rest must follow.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
@@ -374,8 +344,8 @@ const level23: Level = {
   },
 };
 
-const level24: Level = {
-  id: 24,
+const level22: Level = {
+  id: 22,
   title: "The Balanced Base",
   intro: "Two radii make one triangle — its base angles share the load evenly.",
   puzzle: {
@@ -389,8 +359,8 @@ const level24: Level = {
   },
 };
 
-const level25: Level = {
-  id: 25,
+const level23: Level = {
+  id: 23,
   title: "Twice Around the Heart",
   intro: "From the rim to the centre to the base: chain the doubling and the balance.",
   puzzle: {
@@ -404,13 +374,13 @@ const level25: Level = {
   },
 };
 
-const level26: Level = {
-  id: 26,
-  title: "Carried Across",
+const level24: Level = {
+  id: 24,
+  title: "Crossed Witnesses",
   intro: "Close one triangle, then carry its angle across the chord to its twin.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
-    points: [{ id: 'P', x: 100, y: 0 }, { id: 'Q', x: 0, y: 100 }, { id: 'R', x: -76.604444312, y: -64.278760969 }, { id: 'S', x: 17.364817767, y: -98.480775301 }],
+    points: [{ id: 'P', x: 86.602540378, y: 50 }, { id: 'Q', x: 0, y: 100 }, { id: 'R', x: -98.480775301, y: -17.364817767 }, { id: 'S', x: -34.202014333, y: -93.969262079 }],
     segments: [{ a: 'R', b: 'P', kind: 'chord' }, { a: 'R', b: 'Q', kind: 'chord' }, { a: 'S', b: 'P', kind: 'chord' }, { a: 'S', b: 'Q', kind: 'chord' }, { a: 'P', b: 'Q', kind: 'chord' }],
     angles: [{ id: 'PRQ', vertex: 'R', from: 'P', to: 'Q' }, { id: 'PSQ', vertex: 'S', from: 'P', to: 'Q' }, { id: 'RPQ', vertex: 'P', from: 'R', to: 'Q' }, { id: 'RQP', vertex: 'Q', from: 'R', to: 'P' }],
     givens: ['RPQ', 'RQP'],
@@ -419,9 +389,9 @@ const level26: Level = {
   },
 };
 
-const level27: Level = {
-  id: 27,
-  title: "One Given, Two Found · 7",
+const level25: Level = {
+  id: 25,
+  title: "The Corner That Remains",
   intro: "A right angle hides in the semicircle, and one angle is given. The rest must follow.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
@@ -434,8 +404,8 @@ const level27: Level = {
   },
 };
 
-const level28: Level = {
-  id: 28,
+const level26: Level = {
+  id: 26,
   title: "Spokes and Span",
   intro: "Two radii make one triangle — its base angles share the load evenly.",
   puzzle: {
@@ -449,8 +419,8 @@ const level28: Level = {
   },
 };
 
-const level29: Level = {
-  id: 29,
+const level27: Level = {
+  id: 27,
   title: "The Patient Chain",
   intro: "From the rim to the centre to the base: chain the doubling and the balance.",
   puzzle: {
@@ -464,13 +434,13 @@ const level29: Level = {
   },
 };
 
-const level30: Level = {
-  id: 30,
-  title: "Mirror and Measure",
+const level28: Level = {
+  id: 28,
+  title: "The Twin Corner",
   intro: "Close one triangle, then carry its angle across the chord to its twin.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
-    points: [{ id: 'P', x: 86.602540378, y: 50 }, { id: 'Q', x: 0, y: 100 }, { id: 'R', x: -98.480775301, y: -17.364817767 }, { id: 'S', x: -34.202014333, y: -93.969262079 }],
+    points: [{ id: 'P', x: 86.602540378, y: 50 }, { id: 'Q', x: -86.602540378, y: 50 }, { id: 'R', x: -34.202014333, y: -93.969262079 }, { id: 'S', x: 17.364817767, y: -98.480775301 }],
     segments: [{ a: 'R', b: 'P', kind: 'chord' }, { a: 'R', b: 'Q', kind: 'chord' }, { a: 'S', b: 'P', kind: 'chord' }, { a: 'S', b: 'Q', kind: 'chord' }, { a: 'P', b: 'Q', kind: 'chord' }],
     angles: [{ id: 'PRQ', vertex: 'R', from: 'P', to: 'Q' }, { id: 'PSQ', vertex: 'S', from: 'P', to: 'Q' }, { id: 'RPQ', vertex: 'P', from: 'R', to: 'Q' }, { id: 'RQP', vertex: 'Q', from: 'R', to: 'P' }],
     givens: ['RPQ', 'RQP'],
@@ -479,9 +449,9 @@ const level30: Level = {
   },
 };
 
-const level31: Level = {
-  id: 31,
-  title: "One Given, Two Found · 8",
+const level29: Level = {
+  id: 29,
+  title: "One Given, Two Found",
   intro: "A right angle hides in the semicircle, and one angle is given. The rest must follow.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
@@ -494,8 +464,8 @@ const level31: Level = {
   },
 };
 
-const level32: Level = {
-  id: 32,
+const level30: Level = {
+  id: 30,
   title: "From Centre, Outward",
   intro: "Two radii make one triangle — its base angles share the load evenly.",
   puzzle: {
@@ -509,8 +479,8 @@ const level32: Level = {
   },
 };
 
-const level33: Level = {
-  id: 33,
+const level31: Level = {
+  id: 31,
   title: "From Rim to Spoke",
   intro: "From the rim to the centre to the base: chain the doubling and the balance.",
   puzzle: {
@@ -524,13 +494,13 @@ const level33: Level = {
   },
 };
 
-const level34: Level = {
-  id: 34,
-  title: "Close, Then Cross",
+const level32: Level = {
+  id: 32,
+  title: "Across and Equal",
   intro: "Close one triangle, then carry its angle across the chord to its twin.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
-    points: [{ id: 'P', x: 86.602540378, y: 50 }, { id: 'Q', x: -86.602540378, y: 50 }, { id: 'R', x: -34.202014333, y: -93.969262079 }, { id: 'S', x: 17.364817767, y: -98.480775301 }],
+    points: [{ id: 'P', x: 50, y: 86.602540378 }, { id: 'Q', x: -86.602540378, y: 50 }, { id: 'R', x: -98.480775301, y: -17.364817767 }, { id: 'S', x: -76.604444312, y: -64.278760969 }],
     segments: [{ a: 'R', b: 'P', kind: 'chord' }, { a: 'R', b: 'Q', kind: 'chord' }, { a: 'S', b: 'P', kind: 'chord' }, { a: 'S', b: 'Q', kind: 'chord' }, { a: 'P', b: 'Q', kind: 'chord' }],
     angles: [{ id: 'PRQ', vertex: 'R', from: 'P', to: 'Q' }, { id: 'PSQ', vertex: 'S', from: 'P', to: 'Q' }, { id: 'RPQ', vertex: 'P', from: 'R', to: 'Q' }, { id: 'RQP', vertex: 'Q', from: 'R', to: 'P' }],
     givens: ['RPQ', 'RQP'],
@@ -539,9 +509,9 @@ const level34: Level = {
   },
 };
 
-const level35: Level = {
-  id: 35,
-  title: "One Given, Two Found · 9",
+const level33: Level = {
+  id: 33,
+  title: "One Given, Two Found · 7",
   intro: "A right angle hides in the semicircle, and one angle is given. The rest must follow.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
@@ -554,8 +524,8 @@ const level35: Level = {
   },
 };
 
-const level36: Level = {
-  id: 36,
+const level34: Level = {
+  id: 34,
   title: "Even on Two Radii",
   intro: "Two radii make one triangle — its base angles share the load evenly.",
   puzzle: {
@@ -569,8 +539,8 @@ const level36: Level = {
   },
 };
 
-const level37: Level = {
-  id: 37,
+const level35: Level = {
+  id: 35,
   title: "Doubled then Balanced",
   intro: "From the rim to the centre to the base: chain the doubling and the balance.",
   puzzle: {
@@ -584,13 +554,13 @@ const level37: Level = {
   },
 };
 
-const level38: Level = {
-  id: 38,
-  title: "Crossed Witnesses",
+const level36: Level = {
+  id: 36,
+  title: "Triangle to Twin",
   intro: "Close one triangle, then carry its angle across the chord to its twin.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
-    points: [{ id: 'P', x: 50, y: 86.602540378 }, { id: 'Q', x: -86.602540378, y: 50 }, { id: 'R', x: -98.480775301, y: -17.364817767 }, { id: 'S', x: -76.604444312, y: -64.278760969 }],
+    points: [{ id: 'P', x: 50, y: 86.602540378 }, { id: 'Q', x: -86.602540378, y: -50 }, { id: 'R', x: 64.278760969, y: -76.604444312 }, { id: 'S', x: 98.480775301, y: 17.364817767 }],
     segments: [{ a: 'R', b: 'P', kind: 'chord' }, { a: 'R', b: 'Q', kind: 'chord' }, { a: 'S', b: 'P', kind: 'chord' }, { a: 'S', b: 'Q', kind: 'chord' }, { a: 'P', b: 'Q', kind: 'chord' }],
     angles: [{ id: 'PRQ', vertex: 'R', from: 'P', to: 'Q' }, { id: 'PSQ', vertex: 'S', from: 'P', to: 'Q' }, { id: 'RPQ', vertex: 'P', from: 'R', to: 'Q' }, { id: 'RQP', vertex: 'Q', from: 'R', to: 'P' }],
     givens: ['RPQ', 'RQP'],
@@ -599,9 +569,9 @@ const level38: Level = {
   },
 };
 
-const level39: Level = {
-  id: 39,
-  title: "One Given, Two Found · 10",
+const level37: Level = {
+  id: 37,
+  title: "One Given, Two Found · 8",
   intro: "A right angle hides in the semicircle, and one angle is given. The rest must follow.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
@@ -614,4 +584,4 @@ const level39: Level = {
   },
 };
 
-export const LEVELS: Level[] = [level1, level2, level3, level4, level5, level6, level7, level8, level9, level10, level11, level12, level13, level14, level15, level16, level17, level18, level19, level20, level21, level22, level23, level24, level25, level26, level27, level28, level29, level30, level31, level32, level33, level34, level35, level36, level37, level38, level39];
+export const LEVELS: Level[] = [level1, level2, level3, level4, level5, level6, level7, level8, level9, level10, level11, level12, level13, level14, level15, level16, level17, level18, level19, level20, level21, level22, level23, level24, level25, level26, level27, level28, level29, level30, level31, level32, level33, level34, level35, level36, level37];

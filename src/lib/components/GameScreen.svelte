@@ -676,20 +676,15 @@
   // can still see where it goes.
   const activeKeyId = $derived(chain?.keyId ?? drag?.keyId ?? null);
   const hint = $derived.by(() => {
-    if (chain) {
-      // the loose end: light up the nodes that legally pair with the anchor
-      const partners = placementsFor(chain.keyId)
-        .filter((p) => p.angleIds.length === 2 && p.angleIds.includes(chain!.anchor))
-        .map((p) => p.angleIds.find((id) => id !== chain!.anchor)!);
-      return { keyId: chain.keyId, nodes: [...new Set(partners)], tris: [] as string[][] };
-    }
-    if (drag) {
-      if (drag.keyId === 'triangle-sum')
-        return { keyId: drag.keyId, nodes: [] as string[], tris: geomTriangles.map((t) => t.verts) };
-      const nodes = [...new Set(placementsFor(drag.keyId).flatMap((p) => p.angleIds))];
-      return { keyId: drag.keyId, nodes, tris: [] as string[][] };
-    }
-    return null;
+    if (!activeKeyId) return null;
+    // The aura shows WHERE a key can be dropped, not where it belongs — so glow
+    // EVERY candidate, never just the solving ones (that gave the game away).
+    if (activeKeyId === 'triangle-sum')
+      return { keyId: activeKeyId, nodes: [] as string[], tris: geomTriangles.map((t) => t.verts) };
+    // every pin is a legal drop spot; skip only the chain's anchor (it already
+    // holds the chain — you drop the loose end on one of the others).
+    const nodes = drawn.angles.map((a) => a.id).filter((id) => id !== chain?.anchor);
+    return { keyId: activeKeyId, nodes, tris: [] as string[][] };
   });
   const auraTriPoly = (verts: string[]) =>
     verts.map((v) => { const p = ptPos.get(v)!; return `${p.x},${p.y}`; }).join(' ');

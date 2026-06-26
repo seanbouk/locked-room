@@ -228,6 +228,37 @@ function triSemi(): Spec[] {
   }
   return out;
 }
+// A plain triangle (intro to the Triangle key): three inscribed vertices, two
+// angles given (brass), the third the target — solvable by triangle-sum ALONE.
+// No diameter, so the right-angle key has nothing to grab: it just needs the
+// triangle key.
+function triangleOnly(): Spec[] {
+  // Gather candidate triples and sort the WELL-SHAPED ones first (gaps near 120°
+  // ⇒ near-equilateral), so the intro level is a clean triangle, not a sliver.
+  const triples: Array<{ A: number; B: number; C: number; score: number }> = [];
+  for (let a = 0; a < 360; a += 30)
+    for (let b = a + 30; b < a + 330; b += 30)
+      for (let c = b + 30; c < a + 360; c += 30) {
+        const A = norm360(a), B = norm360(b), C = norm360(c);
+        const s = [A, B, C].sort((x, y) => x - y);
+        const gaps = [s[1] - s[0], s[2] - s[1], 360 - (s[2] - s[0])];
+        if (Math.min(...gaps) < 50) continue; // no sliver / clustered points
+        if (gaps.some((g) => Math.abs(g - 180) < 1)) continue; // no diameter → no right angle
+        const score = gaps.reduce((acc, g) => acc + (g - 120) ** 2, 0); // 0 = equilateral
+        triples.push({ A, B, C, score });
+      }
+  triples.sort((p, q) => p.score - q.score);
+  const out: Spec[] = [];
+  for (const { A, B, C } of triples) {
+    // interior angles: BAC at A, ABC at B, ACB at C
+    const angles = [ang('A', 'B', 'C'), ang('B', 'A', 'C'), ang('C', 'A', 'B')];
+    const base = { pts: [pt('A', A), pt('B', B), pt('C', C)], angles };
+    out.push({ ...base, givens: ['ABC', 'ACB'], targets: ['BAC'] });
+    out.push({ ...base, givens: ['BAC', 'ACB'], targets: ['ABC'] });
+    out.push({ ...base, givens: ['BAC', 'ABC'], targets: ['ACB'] });
+  }
+  return out;
+}
 // Same segment (band 3): two (or three) inscribed angles on one chord.
 function sameSeg(three: boolean): Spec[] {
   const out: Spec[] = [];
@@ -353,7 +384,7 @@ function collect(
   templates: Template[],
   keys: string[],
   count: number,
-  opts: { needKey?: string; minSteps?: number; minRequired?: number },
+  opts: { needKeys?: string[]; minSteps?: number; minRequired?: number },
 ): Array<Valid & { kind: string }> {
   // One spread-out validated pool PER template, so we can round-robin across
   // figure types for variety instead of clustering on whichever swept first.
@@ -363,7 +394,7 @@ function collect(
     for (const spec of tpl.gen()) {
       const v = validate(spec, keys);
       if (!v) continue;
-      if (opts.needKey && !v.required.includes(opts.needKey)) continue;
+      if (opts.needKeys && !opts.needKeys.every((k) => v.required.includes(k))) continue;
       if (opts.minSteps && v.steps < opts.minSteps) continue;
       if (opts.minRequired && v.required.length < opts.minRequired) continue;
       if (seenLocal.has(v.sig)) continue;
@@ -404,6 +435,7 @@ function collect(
 const titles: Record<string, string[]> = {
   right: ['The Right Corner', 'Square to the Diameter', 'A Corner on the Line', 'Straight Through'],
   tworight: ['Two Clean Corners', 'A Pair of Squares', 'Both Corners True'],
+  triangleonly: ['Two Given, One Found', 'The Missing Angle', 'A Hundred and Eighty', 'The Third of Three'],
   trisemi: ['The Third Angle', 'What the Triangle Owes', 'Closing the Triangle', 'Half a Turn, Shared', 'The Corner That Remains', 'One Given, Two Found'],
   sameseg: ['Same Arc, Same Angle', 'Twin Views', 'Across the Chord', 'Echo on the Rim', 'Two Witnesses', 'Three of a Kind'],
   centre: ['Twice from the Heart', 'The Centre Doubles', 'Rim and Core', 'The Doubling', 'Heart of It', 'Half the Centre'],
@@ -414,6 +446,7 @@ const titles: Record<string, string[]> = {
 const intros: Record<string, string> = {
   right: 'A line straight through the centre — find the corner it squares off.',
   tworight: 'One diameter, two corners on the rim. Both are squared off.',
+  triangleonly: 'Two angles of the triangle are known. Its three must add to 180°.',
   trisemi: 'A right angle hides in the semicircle, and one angle is given. The rest must follow.',
   sameseg: 'Two angles watch the same chord from the same side. They cannot disagree.',
   centre: 'The angle at the heart of the circle is twice the one out on the rim.',
@@ -444,57 +477,76 @@ function emitPuzzle(p: Puzzle): string {
   }`;
 }
 
+// A band is an ordered list of GROUPS (each a template set + count), so we can
+// compose a band precisely — e.g. "one triangle-only intro, then three
+// triangle-in-semicircle". Levels come out in group order; the award lands on
+// the band's final level.
+interface Group {
+  templates: Template[];
+  count: number;
+  needKeys?: string[];
+  minRequired?: number;
+}
 interface Plan {
   band: string;
   keys: string[];
-  count: number;
-  templates: Template[];
-  needKey?: string;
-  minSteps?: number;
-  minRequired?: number;
-  award?: string; // awarded by the LAST level of the band
+  groups: Group[];
+  award?: string;
 }
 
 const SEMI = 'semicircle', TRI = 'triangle-sum', SAME = 'same-segment', CEN = 'angle-at-centre', ISO = 'isosceles-radii';
 
+const T = {
+  right: { kind: 'right', gen: rightAngle },
+  tworight: { kind: 'tworight', gen: twoRight },
+  triangleOnly: { kind: 'triangleonly', gen: triangleOnly },
+  trisemi: { kind: 'trisemi', gen: triSemi },
+  sameseg2: { kind: 'sameseg', gen: () => sameSeg(false) },
+  sameseg3: { kind: 'sameseg', gen: () => sameSeg(true) },
+  trisameseg: { kind: 'trisameseg', gen: triSameSeg },
+  centre: { kind: 'centre', gen: centre },
+  iso: { kind: 'iso', gen: iso },
+  centreiso: { kind: 'centreiso', gen: centreIso },
+} satisfies Record<string, Template>;
+
 const plans: Plan[] = [
+  // 2 right-angle levels (a single corner + a two-corner), then the Triangle key.
+  { band: 'b1', keys: [SEMI], award: TRI, groups: [{ templates: [T.right, T.tworight], count: 2 }] },
+  // Triangle key: one pure-triangle intro (two givens, find the third), then
+  // three triangle-in-semicircle rooms. Then the Same-Segment key.
   {
-    band: 'b1', keys: [SEMI], count: 3, award: TRI,
-    templates: [{ kind: 'right', gen: rightAngle }, { kind: 'tworight', gen: twoRight }],
-  },
-  {
-    band: 'b2', keys: [SEMI, TRI], count: 5, needKey: TRI, award: SAME,
-    templates: [{ kind: 'trisemi', gen: triSemi }],
-  },
-  {
-    band: 'b3', keys: [SEMI, TRI, SAME], count: 5, needKey: SAME, award: CEN,
-    templates: [{ kind: 'sameseg', gen: () => sameSeg(false) }, { kind: 'sameseg', gen: () => sameSeg(true) }],
-  },
-  {
-    band: 'b4', keys: [SEMI, TRI, SAME, CEN], count: 5, needKey: CEN, award: ISO,
-    templates: [{ kind: 'centre', gen: centre }],
-  },
-  {
-    band: 'b5', keys: [SEMI, TRI, SAME, CEN, ISO], count: 20, minRequired: 2,
-    templates: [
-      { kind: 'iso', gen: iso },
-      { kind: 'centreiso', gen: centreIso },
-      { kind: 'trisameseg', gen: triSameSeg },
-      { kind: 'trisemi', gen: triSemi },
+    band: 'b2', keys: [SEMI, TRI], award: SAME,
+    groups: [
+      { templates: [T.triangleOnly], count: 1, needKeys: [TRI] },
+      { templates: [T.trisemi], count: 3, needKeys: [TRI] },
     ],
+  },
+  // Same-Segment: two pure same-segment rooms, then three that COMBINE it with
+  // the triangle (find an angle, carry it across the chord). Then Angle-at-Centre.
+  {
+    band: 'b3', keys: [SEMI, TRI, SAME], award: CEN,
+    groups: [
+      { templates: [T.sameseg2, T.sameseg3], count: 2, needKeys: [SAME] },
+      { templates: [T.trisameseg], count: 3, needKeys: [SAME, TRI] },
+    ],
+  },
+  // (Bands below are untouched for now — to be revisited.)
+  { band: 'b4', keys: [SEMI, TRI, SAME, CEN], award: ISO, groups: [{ templates: [T.centre], count: 5, needKeys: [CEN] }] },
+  {
+    band: 'b5', keys: [SEMI, TRI, SAME, CEN, ISO],
+    groups: [{ templates: [T.iso, T.centreiso, T.trisameseg, T.trisemi], count: 20, minRequired: 2 }],
   },
 ];
 
 const generated: Array<{ kind: string; puzzle: Puzzle; award?: string }> = [];
 for (const plan of plans) {
-  const picked = collect(plan.templates, plan.keys, plan.count, {
-    needKey: plan.needKey,
-    minSteps: plan.minSteps,
-    minRequired: plan.minRequired,
-  });
-  const kinds = picked.map((p) => p.kind).join(',');
-  console.error(`${plan.band}: wanted ${plan.count}, got ${picked.length} [${kinds}]`);
-  if (picked.length < plan.count) console.error(`  !! SHORTFALL in ${plan.band}`);
+  const picked: Array<Valid & { kind: string }> = [];
+  for (const g of plan.groups) {
+    const got = collect(g.templates, plan.keys, g.count, { needKeys: g.needKeys, minRequired: g.minRequired });
+    if (got.length < g.count) console.error(`  !! SHORTFALL in ${plan.band} group [${g.templates.map((t) => t.kind).join(',')}]: ${got.length}/${g.count}`);
+    picked.push(...got);
+  }
+  console.error(`${plan.band}: ${picked.length} [${picked.map((p) => p.kind).join(',')}]`);
   picked.forEach((v, i) => {
     generated.push({
       kind: v.kind,
