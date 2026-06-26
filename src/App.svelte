@@ -17,20 +17,27 @@
   let rewardKeyId = $state<string | null>(null);
   let nextAfterReward = $state<number | null>(null);
 
-  // Reset is a deferred, escalating commitment: each click disables the prior
-  // button and reveals the next, filling the space to the right. Once the chain
-  // is exhausted the reset is "armed" and actually fires when you leave the
-  // modal — no cancel button; just don't finish the chain (or pick a room).
+  // Reset is an escalating commitment: each click disables the prior button and
+  // reveals the next, filling the space to the right. The FINAL click wipes
+  // progress and drops the player back at the start. No cancel button — just
+  // don't finish the chain (or pick a room).
   const RESET_STEPS = ['reset all progress', 'are you sure?', 'really sure?', 'absolutely certain?'];
   let resetStep = $state(0);
-  const resetArmed = $derived(resetStep >= RESET_STEPS.length);
 
-  function closeRooms() {
-    if (resetArmed) {
+  function advanceReset(i: number) {
+    if (i + 1 >= RESET_STEPS.length) {
+      // last confirmation — wipe and bail straight back to the start
       progress.reset();
       currentId = 1;
+      resetStep = 0;
+      showRooms = false;
+    } else {
+      resetStep = i + 1;
     }
-    resetStep = 0;
+  }
+
+  function closeRooms() {
+    resetStep = 0; // forget a part-finished reset chain
     showRooms = false;
   }
 
@@ -127,7 +134,7 @@
           {/each}
         </div>
         <!-- escalating reset: each click disables the prior button and reveals
-             the next; once the chain is done it's armed and fires on close -->
+             the next; the final click wipes progress and closes the modal -->
         <div class="reset-row">
           {#each RESET_STEPS as label, i (i)}
             {#if i <= resetStep}
@@ -135,13 +142,10 @@
                 class="reset-step"
                 class:danger={i > 0}
                 disabled={i < resetStep}
-                onclick={() => (resetStep = i + 1)}
+                onclick={() => advanceReset(i)}
               >{label}</button>
             {/if}
           {/each}
-          {#if resetArmed}
-            <span class="reset-armed">⚠ progress resets when you close this menu</span>
-          {/if}
         </div>
       </div>
     </div>
@@ -337,11 +341,6 @@
     opacity: 0.32;
     cursor: default;
     border-style: dashed;
-  }
-  .reset-armed {
-    font-size: 1.8cqw;
-    color: #ff7a7a;
-    letter-spacing: 0.03em;
   }
   @keyframes resetPulse {
     0%, 100% { opacity: 0.65; }
