@@ -131,6 +131,18 @@ function minAngularGap(degs: number[]): number {
     }
   return m;
 }
+// How close any of these point-pairs (chords) comes to a full diameter, in
+// degrees away from 180°. Small = a chord that nearly bisects the disc through
+// the centre — reads oddly, especially next to the centre pin.
+function nearestDiameter(pairs: Array<[number, number]>): number {
+  let m = 180;
+  for (const [u, v] of pairs) {
+    let d = Math.abs(((u - v) % 360) + 360) % 360;
+    d = Math.min(d, 360 - d);
+    m = Math.min(m, Math.abs(d - 180));
+  }
+  return m;
+}
 function validate(spec: Spec, keys: string[]): Valid | null {
   // distinct, well-spaced on-circle points
   const circleDegs = spec.pts.filter((p) => p.deg !== 'O').map((p) => p.deg as number);
@@ -403,8 +415,12 @@ function centreTriSameSeg(): Spec[] {
         for (let d = a + 30; d <= c - 30; d += 30) {
           if (Math.abs(d - b) < 25) continue; // keep D clear of B
           const A = norm360(a), B = norm360(b), C = norm360(c), D = norm360(d);
+          // skip figures where any chord runs near the centre pin (a chord within
+          // ~30° of a diameter passes within a pin-radius of O)
+          const diam = nearestDiameter([[A, B], [A, C], [B, C], [A, D], [C, D]]);
+          if (diam < 30) continue;
           cands.push({
-            score: minAngularGap([A, B, C, D]),
+            score: minAngularGap([A, B, C, D]) + diam, // spread, and clear of the centre
             spec: {
               pts: [pt('O', 'O'), pt('A', A), pt('B', B), pt('C', C), pt('D', D)],
               angles: [ang('O', 'A', 'B'), ang('C', 'A', 'B'), ang('A', 'C', 'B'), ang('B', 'A', 'C'), ang('D', 'A', 'C')],
@@ -666,7 +682,6 @@ const plans: Plan[] = [
       { templates: [T.centre], count: 1, needKeys: [CEN] },                      // 1-key
       { templates: [T.centre], count: 1, needKeys: [CEN] },                      // 1-key
       { templates: [T.centreTriangle], count: 1, needKeys: [CEN, TRI] },         // 2-key (centre-first)
-      { templates: [T.centreTriangleRev], count: 1, needKeys: [CEN, TRI] },      // 2-key (triangle-first)
       { templates: [T.centreTriSameSeg], count: 1, needKeys: [CEN, TRI, SAME] }, // 3-key
       { templates: [T.centreTriangle], count: 1, needKeys: [CEN, TRI] },         // 2-key (breather)
       { templates: [T.centreTriSameSeg], count: 1, needKeys: [CEN, TRI, SAME] }, // 3-key
