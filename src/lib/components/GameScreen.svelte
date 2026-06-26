@@ -680,7 +680,16 @@
     // The aura shows WHERE a key can be dropped, not where it belongs — so glow
     // EVERY candidate, never just the solving ones (that gave the game away).
     if (activeKeyId === 'triangle-sum')
-      return { keyId: activeKeyId, nodes: [] as string[], tris: geomTriangles.map((t) => t.verts) };
+      // ...but only triangles the key can actually engage (all three corner
+      // angles marked). A triangle with just one marked angle — e.g. the
+      // same-segment twin sharing a chord — isn't a triangle-sum spot at all, so
+      // lighting it only misled people. Decoy triangles that ARE fully marked
+      // still glow, so this never reveals which one solves.
+      return {
+        keyId: activeKeyId,
+        nodes: [] as string[],
+        tris: geomTriangles.filter((t) => placementForTriangle(t.verts)).map((t) => t.verts),
+      };
     // every pin is a legal drop spot; skip only the chain's anchor (it already
     // holds the chain — you drop the loose end on one of the others).
     const nodes = drawn.angles.map((a) => a.id).filter((id) => id !== chain?.anchor);
