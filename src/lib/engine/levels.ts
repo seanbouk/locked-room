@@ -171,7 +171,7 @@ const level10: Level = {
   intro: "Close one triangle, then carry its angle across the chord to its twin.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
-    points: [{ id: 'P', x: 100, y: 0 }, { id: 'Q', x: 50, y: 86.602540378 }, { id: 'R', x: -17.364817767, y: 98.480775301 }, { id: 'S', x: -64.278760969, y: 76.604444312 }],
+    points: [{ id: 'P', x: 100, y: 0 }, { id: 'Q', x: -17.364817767, y: 98.480775301 }, { id: 'R', x: -93.969262079, y: -34.202014333 }, { id: 'S', x: 8.715574275, y: -99.619469809 }],
     segments: [{ a: 'R', b: 'P', kind: 'chord' }, { a: 'R', b: 'Q', kind: 'chord' }, { a: 'S', b: 'P', kind: 'chord' }, { a: 'S', b: 'Q', kind: 'chord' }, { a: 'P', b: 'Q', kind: 'chord' }],
     angles: [{ id: 'PRQ', vertex: 'R', from: 'P', to: 'Q' }, { id: 'PSQ', vertex: 'S', from: 'P', to: 'Q' }, { id: 'RPQ', vertex: 'P', from: 'R', to: 'Q' }, { id: 'RQP', vertex: 'Q', from: 'R', to: 'P' }],
     givens: ['RPQ', 'RQP'],
@@ -187,7 +187,7 @@ const level11: Level = {
   intro: "Close one triangle, then carry its angle across the chord to its twin.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
-    points: [{ id: 'P', x: 86.602540378, y: 50 }, { id: 'Q', x: -50, y: 86.602540378 }, { id: 'R', x: -98.480775301, y: -17.364817767 }, { id: 'S', x: 64.278760969, y: -76.604444312 }],
+    points: [{ id: 'P', x: 100, y: 0 }, { id: 'Q', x: 34.202014333, y: 93.969262079 }, { id: 'R', x: -76.604444312, y: 64.278760969 }, { id: 'S', x: 57.357643635, y: -81.915204429 }],
     segments: [{ a: 'R', b: 'P', kind: 'chord' }, { a: 'R', b: 'Q', kind: 'chord' }, { a: 'S', b: 'P', kind: 'chord' }, { a: 'S', b: 'Q', kind: 'chord' }, { a: 'P', b: 'Q', kind: 'chord' }],
     angles: [{ id: 'PRQ', vertex: 'R', from: 'P', to: 'Q' }, { id: 'PSQ', vertex: 'S', from: 'P', to: 'Q' }, { id: 'RPQ', vertex: 'P', from: 'R', to: 'Q' }, { id: 'RQP', vertex: 'Q', from: 'R', to: 'P' }],
     givens: ['RPQ', 'RQP'],
@@ -203,7 +203,7 @@ const level12: Level = {
   intro: "Square the semicircle, sum the triangle, then carry the angle across the chord.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
-    points: [{ id: 'A', x: 100, y: 0 }, { id: 'B', x: -100, y: 0 }, { id: 'C', x: 76.604444312, y: 64.278760969 }, { id: 'D', x: 17.364817767, y: 98.480775301 }],
+    points: [{ id: 'A', x: 100, y: 0 }, { id: 'B', x: -100, y: 0 }, { id: 'C', x: 17.364817767, y: 98.480775301 }, { id: 'D', x: -17.364817767, y: -98.480775301 }],
     segments: [{ a: 'C', b: 'A', kind: 'chord' }, { a: 'C', b: 'B', kind: 'chord' }, { a: 'A', b: 'B', kind: 'chord' }, { a: 'D', b: 'A', kind: 'chord' }, { a: 'D', b: 'C', kind: 'chord' }],
     angles: [{ id: 'ACB', vertex: 'C', from: 'A', to: 'B' }, { id: 'CAB', vertex: 'A', from: 'C', to: 'B' }, { id: 'ABC', vertex: 'B', from: 'A', to: 'C' }, { id: 'ADC', vertex: 'D', from: 'A', to: 'C' }],
     givens: ['CAB'],
@@ -326,7 +326,7 @@ const level20: Level = {
   intro: "Close one triangle, then carry its angle across the chord to its twin.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
-    points: [{ id: 'P', x: 100, y: 0 }, { id: 'Q', x: 0, y: 100 }, { id: 'R', x: -76.604444312, y: -64.278760969 }, { id: 'S', x: 17.364817767, y: -98.480775301 }],
+    points: [{ id: 'P', x: -50, y: 86.602540378 }, { id: 'Q', x: -98.480775301, y: -17.364817767 }, { id: 'R', x: -17.364817767, y: -98.480775301 }, { id: 'S', x: 90.630778704, y: -42.261826174 }],
     segments: [{ a: 'R', b: 'P', kind: 'chord' }, { a: 'R', b: 'Q', kind: 'chord' }, { a: 'S', b: 'P', kind: 'chord' }, { a: 'S', b: 'Q', kind: 'chord' }, { a: 'P', b: 'Q', kind: 'chord' }],
     angles: [{ id: 'PRQ', vertex: 'R', from: 'P', to: 'Q' }, { id: 'PSQ', vertex: 'S', from: 'P', to: 'Q' }, { id: 'RPQ', vertex: 'P', from: 'R', to: 'Q' }, { id: 'RQP', vertex: 'Q', from: 'R', to: 'P' }],
     givens: ['RPQ', 'RQP'],
@@ -387,7 +387,7 @@ const level24: Level = {
   intro: "Close one triangle, then carry its angle across the chord to its twin.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
-    points: [{ id: 'P', x: 86.602540378, y: 50 }, { id: 'Q', x: 0, y: 100 }, { id: 'R', x: -98.480775301, y: -17.364817767 }, { id: 'S', x: -34.202014333, y: -93.969262079 }],
+    points: [{ id: 'P', x: 0, y: -100 }, { id: 'Q', x: 93.969262079, y: -34.202014333 }, { id: 'R', x: 17.364817767, y: 98.480775301 }, { id: 'S', x: -90.630778704, y: 42.261826174 }],
     segments: [{ a: 'R', b: 'P', kind: 'chord' }, { a: 'R', b: 'Q', kind: 'chord' }, { a: 'S', b: 'P', kind: 'chord' }, { a: 'S', b: 'Q', kind: 'chord' }, { a: 'P', b: 'Q', kind: 'chord' }],
     angles: [{ id: 'PRQ', vertex: 'R', from: 'P', to: 'Q' }, { id: 'PSQ', vertex: 'S', from: 'P', to: 'Q' }, { id: 'RPQ', vertex: 'P', from: 'R', to: 'Q' }, { id: 'RQP', vertex: 'Q', from: 'R', to: 'P' }],
     givens: ['RPQ', 'RQP'],
@@ -448,7 +448,7 @@ const level28: Level = {
   intro: "Close one triangle, then carry its angle across the chord to its twin.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
-    points: [{ id: 'P', x: 86.602540378, y: 50 }, { id: 'Q', x: -86.602540378, y: 50 }, { id: 'R', x: -34.202014333, y: -93.969262079 }, { id: 'S', x: 17.364817767, y: -98.480775301 }],
+    points: [{ id: 'P', x: 50, y: 86.602540378 }, { id: 'Q', x: -93.969262079, y: 34.202014333 }, { id: 'R', x: -64.278760969, y: -76.604444312 }, { id: 'S', x: 99.619469809, y: 8.715574275 }],
     segments: [{ a: 'R', b: 'P', kind: 'chord' }, { a: 'R', b: 'Q', kind: 'chord' }, { a: 'S', b: 'P', kind: 'chord' }, { a: 'S', b: 'Q', kind: 'chord' }, { a: 'P', b: 'Q', kind: 'chord' }],
     angles: [{ id: 'PRQ', vertex: 'R', from: 'P', to: 'Q' }, { id: 'PSQ', vertex: 'S', from: 'P', to: 'Q' }, { id: 'RPQ', vertex: 'P', from: 'R', to: 'Q' }, { id: 'RQP', vertex: 'Q', from: 'R', to: 'P' }],
     givens: ['RPQ', 'RQP'],
@@ -509,7 +509,7 @@ const level32: Level = {
   intro: "Close one triangle, then carry its angle across the chord to its twin.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
-    points: [{ id: 'P', x: 50, y: 86.602540378 }, { id: 'Q', x: -86.602540378, y: 50 }, { id: 'R', x: -98.480775301, y: -17.364817767 }, { id: 'S', x: -76.604444312, y: -64.278760969 }],
+    points: [{ id: 'P', x: -86.602540378, y: -50 }, { id: 'Q', x: 17.364817767, y: -98.480775301 }, { id: 'R', x: 64.278760969, y: 76.604444312 }, { id: 'S', x: -90.630778704, y: 42.261826174 }],
     segments: [{ a: 'R', b: 'P', kind: 'chord' }, { a: 'R', b: 'Q', kind: 'chord' }, { a: 'S', b: 'P', kind: 'chord' }, { a: 'S', b: 'Q', kind: 'chord' }, { a: 'P', b: 'Q', kind: 'chord' }],
     angles: [{ id: 'PRQ', vertex: 'R', from: 'P', to: 'Q' }, { id: 'PSQ', vertex: 'S', from: 'P', to: 'Q' }, { id: 'RPQ', vertex: 'P', from: 'R', to: 'Q' }, { id: 'RQP', vertex: 'Q', from: 'R', to: 'P' }],
     givens: ['RPQ', 'RQP'],
@@ -570,7 +570,7 @@ const level36: Level = {
   intro: "Close one triangle, then carry its angle across the chord to its twin.",
   puzzle: {
     circle: { cx: 0, cy: 0, r: 100 },
-    points: [{ id: 'P', x: 50, y: 86.602540378 }, { id: 'Q', x: -86.602540378, y: -50 }, { id: 'R', x: 64.278760969, y: -76.604444312 }, { id: 'S', x: 98.480775301, y: 17.364817767 }],
+    points: [{ id: 'P', x: 100, y: 0 }, { id: 'Q', x: 34.202014333, y: 93.969262079 }, { id: 'R', x: -76.604444312, y: 64.278760969 }, { id: 'S', x: -99.619469809, y: -8.715574275 }],
     segments: [{ a: 'R', b: 'P', kind: 'chord' }, { a: 'R', b: 'Q', kind: 'chord' }, { a: 'S', b: 'P', kind: 'chord' }, { a: 'S', b: 'Q', kind: 'chord' }, { a: 'P', b: 'Q', kind: 'chord' }],
     angles: [{ id: 'PRQ', vertex: 'R', from: 'P', to: 'Q' }, { id: 'PSQ', vertex: 'S', from: 'P', to: 'Q' }, { id: 'RPQ', vertex: 'P', from: 'R', to: 'Q' }, { id: 'RQP', vertex: 'Q', from: 'R', to: 'P' }],
     givens: ['RPQ', 'RQP'],

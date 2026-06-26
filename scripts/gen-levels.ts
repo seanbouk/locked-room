@@ -351,24 +351,29 @@ function centreIso(): Spec[] {
 }
 // Triangle + same-segment chain (band 5): two triangle angles -> third -> twin.
 function triSameSeg(): Spec[] {
-  const out: Spec[] = [];
+  // Sorted ROOMIEST-first: same-segment forces both apexes onto the same arc, but
+  // spreading P, Q, R, S evenly around the circle keeps the two triangles from
+  // bunching into one corner (the legibility problem in the early combo rooms).
+  const cands: Array<{ spec: Spec; score: number }> = [];
   for (let p = 0; p < 360; p += 30)
-    for (let q = p + 60; q < p + 200; q += 30) {
-      const P = norm360(p), Q = norm360(q);
-      for (let r = q + 40; r <= p + 300; r += 30)
-        for (let s = r + 30; s <= p + 330; s += 30) {
-          const Rv = norm360(r), Sv = norm360(s);
-          out.push({
-            pts: [pt('P', P), pt('Q', Q), pt('R', Rv), pt('S', Sv)],
-            angles: [ang('R', 'P', 'Q'), ang('S', 'P', 'Q'), ang('P', 'R', 'Q'), ang('Q', 'R', 'P')],
-            extraSegs: [['P', 'Q']],
-            givens: ['RPQ', 'RQP'],
-            targets: ['PRQ', 'PSQ'],
-            faint: [['S', 'P'], ['S', 'Q']], // the twin's sides — soften so PSQ doesn't read as a triangle
+    for (let q = p + 70; q < p + 210; q += 30)
+      for (let r = q + 40; r <= p + 320; r += 30)
+        for (let s = r + 45; s <= p + 345; s += 30) {
+          const P = norm360(p), Q = norm360(q), Rv = norm360(r), Sv = norm360(s);
+          cands.push({
+            score: minAngularGap([P, Q, Rv, Sv]), // bigger = more evenly spread
+            spec: {
+              pts: [pt('P', P), pt('Q', Q), pt('R', Rv), pt('S', Sv)],
+              angles: [ang('R', 'P', 'Q'), ang('S', 'P', 'Q'), ang('P', 'R', 'Q'), ang('Q', 'R', 'P')],
+              extraSegs: [['P', 'Q']],
+              givens: ['RPQ', 'RQP'],
+              targets: ['PRQ', 'PSQ'],
+              faint: [['S', 'P'], ['S', 'Q']], // the twin's sides
+            },
           });
         }
-    }
-  return out;
+  cands.sort((a, b) => b.score - a.score);
+  return cands.map((c) => c.spec);
 }
 
 // All three early keys in one chain (band 3 finale): AB a diameter, so the
@@ -377,24 +382,30 @@ function triSameSeg(): Spec[] {
 // carries it across to ∠ADC. (A right-angle+same-segment chain with no triangle
 // is degenerate — both ends of a diameter are already 90° — so it isn't built.)
 function semiTriSameSeg(): Spec[] {
-  const out: Spec[] = [];
+  // Roomiest-first too: AB is a diameter (already spread 180°); spread C and D
+  // away from them and each other so the figure fills the circle.
+  const cands: Array<{ spec: Spec; score: number }> = [];
   for (let d = 0; d < 180; d += 30) {
     const A = norm360(d), B = norm360(d + 180);
     for (let co = 40; co <= 140; co += 20) {
       const C = norm360(d + co);
       for (let dd = 0; dd < 360; dd += 20) {
         const D = norm360(dd);
-        out.push({
-          pts: [pt('A', A), pt('B', B), pt('C', C), pt('D', D)],
-          angles: [ang('C', 'A', 'B'), ang('A', 'C', 'B'), ang('B', 'A', 'C'), ang('D', 'A', 'C')],
-          givens: ['CAB'],
-          targets: ['ABC', 'ADC'],
-          faint: [['D', 'A'], ['D', 'C']], // the twin's sides
+        cands.push({
+          score: minAngularGap([A, B, C, D]),
+          spec: {
+            pts: [pt('A', A), pt('B', B), pt('C', C), pt('D', D)],
+            angles: [ang('C', 'A', 'B'), ang('A', 'C', 'B'), ang('B', 'A', 'C'), ang('D', 'A', 'C')],
+            givens: ['CAB'],
+            targets: ['ABC', 'ADC'],
+            faint: [['D', 'A'], ['D', 'C']], // the twin's sides
+          },
         });
       }
     }
   }
-  return out;
+  cands.sort((a, b) => b.score - a.score);
+  return cands.map((c) => c.spec);
 }
 
 function pt(id: string, deg: Deg): PtSpec {
